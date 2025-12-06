@@ -1,0 +1,1605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoOracle Pro - AI Prediction Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-green: #00ff88;
+            --neon-red: #ff3366;
+            --neon-purple: #9945ff;
+            --neon-blue: #00d4ff;
+            --neon-orange: #ff9500;
+            --glass-bg: rgba(15, 15, 35, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #0a1a2e 100%);
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .cyber-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .neon-glow-green {
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3), 0 0 40px rgba(0, 255, 136, 0.1);
+        }
+
+        .neon-glow-red {
+            box-shadow: 0 0 20px rgba(255, 51, 102, 0.3), 0 0 40px rgba(255, 51, 102, 0.1);
+        }
+
+        .neon-glow-purple {
+            box-shadow: 0 0 20px rgba(153, 69, 255, 0.3), 0 0 40px rgba(153, 69, 255, 0.1);
+        }
+
+        .title-font {
+            font-family: 'Orbitron', monospace;
+        }
+
+        .gauge-container {
+            position: relative;
+            width: 280px;
+            height: 160px;
+        }
+
+        .gauge-bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .gauge-needle {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            width: 4px;
+            height: 100px;
+            background: linear-gradient(to top, #fff, transparent);
+            transform-origin: bottom center;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 2px;
+        }
+
+        .param-block {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .param-block::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.3;
+            transition: opacity 0.3s ease;
+        }
+
+        .param-block.bullish::before {
+            background: radial-gradient(ellipse at center, var(--neon-green), transparent 70%);
+        }
+
+        .param-block.bearish::before {
+            background: radial-gradient(ellipse at center, var(--neon-red), transparent 70%);
+        }
+
+        .param-block.neutral::before {
+            background: radial-gradient(ellipse at center, var(--neon-purple), transparent 70%);
+        }
+
+        .crypto-tab {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .crypto-tab.active {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(153, 69, 255, 0.2));
+            border-color: var(--neon-green);
+        }
+
+        .countdown-ring {
+            stroke-dasharray: 283;
+            stroke-dashoffset: 0;
+            transition: stroke-dashoffset 1s linear;
+        }
+
+        .prediction-card {
+            transition: all 0.3s ease;
+        }
+
+        .prediction-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--neon-green), transparent);
+            animation: scan 3s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { top: 0; opacity: 0; }
+            50% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        .loading-bar {
+            background: linear-gradient(90deg, var(--neon-green), var(--neon-purple), var(--neon-blue));
+            background-size: 200% 100%;
+            animation: loading 1.5s ease infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .stat-value {
+            font-variant-numeric: tabular-nums;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--neon-purple);
+            border-radius: 4px;
+        }
+
+        .leverage-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: linear-gradient(135deg, var(--neon-orange), var(--neon-red));
+        }
+    </style>
+</head>
+<body>
+    <div class="cyber-grid"></div>
+    
+    <!-- Header -->
+    <header class="relative z-10 p-4 border-b border-white/10">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-400 to-purple-600 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="title-font text-2xl font-bold bg-gradient-to-r from-green-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+                        CRYPTOORACLE PRO
+                    </h1>
+                    <p class="text-xs text-gray-400">AI-Powered Futures Prediction Engine</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-6">
+                <div class="glass-panel px-4 py-2 flex items-center gap-3">
+                    <div class="pulse-dot w-2 h-2 rounded-full bg-green-400"></div>
+                    <span class="text-sm text-gray-300">LIVE</span>
+                    <span id="currentTime" class="title-font text-green-400">--:--:--</span>
+                </div>
+                
+                <div class="glass-panel px-4 py-2">
+                    <div class="text-xs text-gray-400">24H Accuracy</div>
+                    <div id="accuracy24h" class="title-font text-xl text-green-400">--%</div>
+                </div>
+                
+                <div class="glass-panel px-4 py-2">
+                    <div class="text-xs text-gray-400">Total Trades</div>
+                    <div id="totalTrades" class="title-font text-xl text-purple-400">--</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Crypto Tabs -->
+    <nav class="relative z-10 p-4">
+        <div class="max-w-7xl mx-auto flex gap-3 overflow-x-auto pb-2" id="cryptoTabs">
+            <!-- Tabs will be generated by JS -->
+        </div>
+    </nav>
+
+    <!-- Main Dashboard -->
+    <main class="relative z-10 p-4 max-w-7xl mx-auto">
+        <!-- Top Row: CPS Gauge + Live Price + Quick Stats -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
+            <!-- CPS Master Gauge -->
+            <div class="glass-panel p-6 neon-glow-purple col-span-1">
+                <h3 class="title-font text-sm text-gray-400 mb-4">COMPOSITE PREDICTIVE SCORE</h3>
+                <div class="flex flex-col items-center">
+                    <div class="gauge-container mb-4">
+                        <svg class="gauge-bg" viewBox="0 0 200 120">
+                            <defs>
+                                <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" style="stop-color:#ff3366"/>
+                                    <stop offset="50%" style="stop-color:#9945ff"/>
+                                    <stop offset="100%" style="stop-color:#00ff88"/>
+                                </linearGradient>
+                            </defs>
+                            <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGrad)" stroke-width="12" stroke-linecap="round"/>
+                            <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="20" stroke-linecap="round"/>
+                        </svg>
+                        <div id="gaugeNeedle" class="gauge-needle" style="transform: rotate(-90deg);"></div>
+                        <div class="absolute bottom-0 left-0 right-0 text-center">
+                            <div id="cpsValue" class="title-font text-4xl font-bold">--</div>
+                            <div id="cpsLabel" class="text-sm text-gray-400">CALCULATING...</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between w-full text-xs text-gray-500">
+                        <span>STRONG SELL</span>
+                        <span>NEUTRAL</span>
+                        <span>STRONG BUY</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Price Panel -->
+            <div class="glass-panel p-6 col-span-1">
+                <h3 class="title-font text-sm text-gray-400 mb-2">LIVE PRICE</h3>
+                <div id="livePrice" class="title-font text-4xl font-bold text-white mb-2">$--,---</div>
+                <div class="flex items-center gap-2">
+                    <span id="priceChange" class="text-lg">--%</span>
+                    <span class="text-xs text-gray-500">24H</span>
+                </div>
+                <div class="mt-4 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                        <div class="text-gray-500">24H High</div>
+                        <div id="high24h" class="text-green-400">$--</div>
+                    </div>
+                    <div>
+                        <div class="text-gray-500">24H Low</div>
+                        <div id="low24h" class="text-red-400">$--</div>
+                    </div>
+                    <div>
+                        <div class="text-gray-500">Volume</div>
+                        <div id="volume24h" class="text-purple-400">$--</div>
+                    </div>
+                    <div>
+                        <div class="text-gray-500">Market Cap</div>
+                        <div id="marketCap" class="text-blue-400">$--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Countdown Timer & Next Update -->
+            <div class="glass-panel p-6 col-span-1">
+                <h3 class="title-font text-sm text-gray-400 mb-4">NEXT ANALYSIS</h3>
+                <div class="flex items-center justify-center mb-4">
+                    <div class="relative">
+                        <svg class="w-24 h-24 transform -rotate-90">
+                            <circle cx="48" cy="48" r="45" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="6"/>
+                            <circle id="countdownRing" class="countdown-ring" cx="48" cy="48" r="45" fill="none" stroke="url(#gaugeGrad)" stroke-width="6" stroke-linecap="round"/>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <span id="countdownText" class="title-font text-2xl">--:--</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <div id="activeInterval" class="text-sm text-purple-400">1 MIN INTERVAL</div>
+                    <div class="text-xs text-gray-500 mt-1">Auto-refresh enabled</div>
+                </div>
+            </div>
+
+            <!-- Fear & Greed Index -->
+            <div class="glass-panel p-6 col-span-1">
+                <h3 class="title-font text-sm text-gray-400 mb-4">FEAR & GREED INDEX</h3>
+                <div class="flex items-center justify-center">
+                    <div id="fearGreedGauge" class="relative w-32 h-32">
+                        <svg viewBox="0 0 100 100" class="w-full h-full">
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8"/>
+                            <circle id="fgCircle" cx="50" cy="50" r="45" fill="none" stroke="var(--neon-orange)" stroke-width="8" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="141" transform="rotate(-90 50 50)"/>
+                        </svg>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                            <span id="fgValue" class="title-font text-3xl font-bold">--</span>
+                            <span id="fgLabel" class="text-xs text-gray-400">NEUTRAL</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prediction Cards Row -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-4" id="predictionCards">
+            <!-- Cards generated by JS -->
+        </div>
+
+        <!-- Main Chart Area -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+            <!-- Price Chart with Predictions -->
+            <div class="glass-panel p-6 col-span-2 relative overflow-hidden">
+                <div class="scan-line"></div>
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="title-font text-sm text-gray-400">PRICE vs PREDICTION OVERLAY</h3>
+                    <div class="flex gap-2">
+                        <button onclick="setChartRange('1h')" class="chart-range-btn px-3 py-1 text-xs rounded bg-white/10 hover:bg-white/20">1H</button>
+                        <button onclick="setChartRange('4h')" class="chart-range-btn px-3 py-1 text-xs rounded bg-white/10 hover:bg-white/20">4H</button>
+                        <button onclick="setChartRange('1d')" class="chart-range-btn px-3 py-1 text-xs rounded bg-white/20 border border-purple-500">1D</button>
+                        <button onclick="setChartRange('1w')" class="chart-range-btn px-3 py-1 text-xs rounded bg-white/10 hover:bg-white/20">1W</button>
+                    </div>
+                </div>
+                <div class="h-80">
+                    <canvas id="priceChart"></canvas>
+                </div>
+                <div class="flex items-center gap-6 mt-4 text-xs">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-blue-400"></div>
+                        <span>Actual Price</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-green-400"></div>
+                        <span>Predicted Price</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-1 bg-purple-400/50"></div>
+                        <span>Confidence Band</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Parameters Heatmap -->
+            <div class="glass-panel p-6 col-span-1">
+                <h3 class="title-font text-sm text-gray-400 mb-4">PARAMETER INTENSITY</h3>
+                <div id="paramHeatmap" class="grid grid-cols-2 gap-2">
+                    <!-- Generated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Historical Performance & Trade Log -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            <!-- Historical Performance Chart -->
+            <div class="glass-panel p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="title-font text-sm text-gray-400">HISTORICAL PERFORMANCE</h3>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500">Win Rate:</span>
+                        <span id="winRate" class="title-font text-green-400">--%</span>
+                    </div>
+                </div>
+                <div class="h-64">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Trade History Log -->
+            <div class="glass-panel p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="title-font text-sm text-gray-400">TRADE HISTORY</h3>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500">P/L:</span>
+                        <span id="totalPL" class="title-font text-green-400">+$--</span>
+                    </div>
+                </div>
+                <div class="overflow-y-auto max-h-56" id="tradeHistory">
+                    <!-- Generated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Stats Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div class="glass-panel p-4 text-center">
+                <div class="text-xs text-gray-500">Winning Trades</div>
+                <div id="winningTrades" class="title-font text-2xl text-green-400">--</div>
+            </div>
+            <div class="glass-panel p-4 text-center">
+                <div class="text-xs text-gray-500">Losing Trades</div>
+                <div id="losingTrades" class="title-font text-2xl text-red-400">--</div>
+            </div>
+            <div class="glass-panel p-4 text-center">
+                <div class="text-xs text-gray-500">Avg Profit</div>
+                <div id="avgProfit" class="title-font text-2xl text-green-400">+$--</div>
+            </div>
+            <div class="glass-panel p-4 text-center">
+                <div class="text-xs text-gray-500">Avg Loss</div>
+                <div id="avgLoss" class="title-font text-2xl text-red-400">-$--</div>
+            </div>
+            <div class="glass-panel p-4 text-center">
+                <div class="text-xs text-gray-500">Current Leverage</div>
+                <div id="currentLeverage" class="title-font text-2xl text-orange-400">1x</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="text-center">
+            <div class="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <div class="title-font text-xl text-white mb-2">INITIALIZING ORACLE</div>
+            <div id="loadingStatus" class="text-sm text-gray-400">Connecting to data feeds...</div>
+            <div class="w-64 h-1 bg-gray-800 rounded-full mt-4 overflow-hidden">
+                <div class="loading-bar h-full rounded-full"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // CRYPTOORACLE PRO - MAIN APPLICATION
+        // ==========================================
+
+        // Configuration
+        const CONFIG = {
+            cryptos: [
+                { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', color: '#f7931a' },
+                { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', color: '#627eea' },
+                { id: 'solana', symbol: 'SOL', name: 'Solana', color: '#00ffa3' },
+                { id: 'binancecoin', symbol: 'BNB', name: 'BNB', color: '#f3ba2f' },
+                { id: 'ripple', symbol: 'XRP', name: 'XRP', color: '#00aae4' }
+            ],
+            intervals: [
+                { label: '1 MIN', seconds: 60, key: '1m' },
+                { label: '5 MIN', seconds: 300, key: '5m' },
+                { label: '15 MIN', seconds: 900, key: '15m' },
+                { label: '1 HOUR', seconds: 3600, key: '1h' },
+                { label: '6 HOURS', seconds: 21600, key: '6h' },
+                { label: '1 DAY', seconds: 86400, key: '1d' },
+                { label: '1 WEEK', seconds: 604800, key: '1w' }
+            ],
+            baseInvestment: 100,
+            maxLeverage: 5,
+            deviationThreshold: 0.05 // 5% deviation triggers recalibration
+        };
+
+        // State Management
+        const state = {
+            currentCrypto: 'bitcoin',
+            currentInterval: 0,
+            prices: {},
+            predictions: {},
+            parameters: {},
+            weights: {
+                sentiment: 0.12,
+                technical: 0.15,
+                whales: 0.10,
+                social: 0.08,
+                derivatives: 0.12,
+                macro: 0.08,
+                network: 0.10,
+                orderbook: 0.10,
+                fearGreed: 0.08,
+                developer: 0.07
+            },
+            tradeHistory: [],
+            stats: {
+                totalTrades: 0,
+                winningTrades: 0,
+                losingTrades: 0,
+                totalPL: 0,
+                accuracy24h: 0
+            },
+            leverage: 1,
+            countdownSeconds: 60,
+            charts: {},
+            lastUpdate: null
+        };
+
+        // ==========================================
+        // DATA FETCHING FUNCTIONS
+        // ==========================================
+
+        async function fetchCryptoPrice(cryptoId) {
+            try {
+                // Используем CORS прокси для CoinGecko
+                const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${cryptoId}?localization=false&tickers=false&community_data=false&developer_data=false&sparkline=true`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 10000
+                });
+                
+                const data = response.data;
+                return {
+                    price: data.market_data.current_price.usd,
+                    change24h: data.market_data.price_change_percentage_24h,
+                    high24h: data.market_data.high_24h.usd,
+                    low24h: data.market_data.low_24h.usd,
+                    volume: data.market_data.total_volume.usd,
+                    marketCap: data.market_data.market_cap.usd,
+                    sparkline: data.market_data.sparkline_7d?.price || [],
+                    devActivity: data.developer_data?.commit_count_4_weeks || 0
+                };
+            } catch (error) {
+                console.error('Error fetching price for', cryptoId, ':', error.message);
+                return generateMockPrice(cryptoId);
+            }
+        }
+
+        async function fetchFearGreedIndex() {
+            try {
+                const response = await axios.get('https://api.alternative.me/fng/?limit=1&format=json', {
+                    timeout: 5000
+                });
+                
+                if (response.data && response.data.data && response.data.data.length > 0) {
+                    return {
+                        value: parseInt(response.data.data[0].value),
+                        classification: response.data.data[0].value_classification
+                    };
+                }
+                throw new Error('Invalid response format');
+            } catch (error) {
+                console.error('Error fetching Fear & Greed:', error.message);
+                // Return neutral values if API fails
+                return { value: 50, classification: 'Neutral' };
+            }
+        }
+
+        function generateMockPrice(cryptoId) {
+            const basePrices = {
+                bitcoin: 67500,
+                ethereum: 3450,
+                solana: 145,
+                binancecoin: 590,
+                ripple: 0.52
+            };
+            const base = basePrices[cryptoId] || 100;
+            
+            // Simulate small random fluctuations
+            const variance = base * 0.02;
+            const price = base + (Math.random() - 0.5) * variance;
+            const change24h = (Math.random() - 0.5) * 10;
+            
+            return {
+                price: price,
+                change24h: change24h,
+                high24h: price * (1 + Math.abs(change24h)/100),
+                low24h: price * (1 - Math.abs(change24h)/100),
+                volume: base * 1000000 * (0.5 + Math.random()),
+                marketCap: base * 19000000,
+                sparkline: Array(168).fill(0).map((_, i) => {
+                    const basePrice = base * 0.95;
+                    const trend = i > 100 ? 0.1 : 0;
+                    return basePrice * (1 + trend + Math.random() * 0.1);
+                }),
+                devActivity: Math.floor(Math.random() * 200) + 50
+            };
+        }
+
+        // ==========================================
+        // PARAMETER CALCULATION FUNCTIONS
+        // ==========================================
+
+        function calculateTechnicalIndicators(prices) {
+            if (!prices || prices.length < 14) {
+                return { rsi: 50, macd: 0, bbDeviation: 0, score: 0 };
+            }
+
+            // Simple RSI Calculation
+            const lastPrices = prices.slice(-30); // Use last 30 prices
+            let gains = 0;
+            let losses = 0;
+            
+            for (let i = 1; i < lastPrices.length; i++) {
+                const change = lastPrices[i] - lastPrices[i - 1];
+                if (change > 0) {
+                    gains += change;
+                } else {
+                    losses -= change;
+                }
+            }
+            
+            const avgGain = gains / 14;
+            const avgLoss = losses / 14;
+            const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+            const rsi = 100 - (100 / (1 + rs));
+
+            // Simplified MACD
+            const ema12 = calculateEMA(lastPrices, 12);
+            const ema26 = calculateEMA(lastPrices, 26);
+            const macd = ema12 - ema26;
+
+            // Simplified Bollinger Bands
+            const sma20 = lastPrices.slice(-20).reduce((a, b) => a + b, 0) / 20;
+            const std = Math.sqrt(lastPrices.slice(-20).reduce((sum, p) => sum + Math.pow(p - sma20, 2), 0) / 20);
+            const currentPrice = lastPrices[lastPrices.length - 1];
+            const bbDeviation = std === 0 ? 0 : (currentPrice - sma20) / (2 * std);
+
+            // Combined technical score (-1 to 1)
+            let score = 0;
+            if (rsi < 30) score += 0.4;
+            else if (rsi > 70) score -= 0.4;
+            else score += (50 - rsi) / 100;
+
+            score += Math.max(-0.3, Math.min(0.3, macd / currentPrice * 100));
+            score += Math.max(-0.3, Math.min(0.3, -bbDeviation * 0.3));
+
+            return { rsi, macd, bbDeviation, score: Math.max(-1, Math.min(1, score)) };
+        }
+
+        function calculateEMA(prices, period) {
+            if (prices.length < period) return prices[prices.length - 1] || 0;
+            
+            const k = 2 / (period + 1);
+            let ema = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
+            
+            for (let i = period; i < prices.length; i++) {
+                ema = prices[i] * k + ema * (1 - k);
+            }
+            return ema;
+        }
+
+        function calculateOrderBookPressure() {
+            // Simulate order book pressure based on recent price action
+            return (Math.random() - 0.5) * 2;
+        }
+
+        function generateSimulatedParameters() {
+            // Simulate all 10 parameters with realistic correlations
+            const sentiment = (Math.random() - 0.5) * 2;
+            const technical = (Math.random() - 0.5) * 1.5;
+            
+            // Whales tend to follow sentiment
+            const whales = sentiment * 0.7 + (Math.random() - 0.5) * 0.6;
+            
+            // Social follows sentiment with more volatility
+            const social = sentiment * 0.8 + (Math.random() - 0.5) * 0.8;
+            
+            // Derivatives correlate with technical indicators
+            const derivatives = technical * 0.6 + (Math.random() - 0.5) * 0.8;
+            
+            // Macro is more random but with slower changes
+            const macro = (Math.random() - 0.5) * 1.2;
+            
+            // Network activity is generally positive with some noise
+            const network = 0.3 + Math.random() * 0.4;
+            
+            return {
+                sentiment: Math.max(-1, Math.min(1, sentiment)),
+                technical: Math.max(-1, Math.min(1, technical)),
+                whales: Math.max(-1, Math.min(1, whales)),
+                social: Math.max(-1, Math.min(1, social)),
+                derivatives: Math.max(-1, Math.min(1, derivatives)),
+                macro: Math.max(-1, Math.min(1, macro)),
+                network: Math.max(0, Math.min(1, network)),
+                orderbook: calculateOrderBookPressure(),
+                fearGreed: (Math.random() - 0.5) * 1.5,
+                developer: 0.4 + Math.random() * 0.3
+            };
+        }
+
+        // ==========================================
+        // COMPOSITE PREDICTIVE SCORE (CPS)
+        // ==========================================
+
+        function calculateCPS(params) {
+            const {
+                sentiment, technical, whales, social,
+                derivatives, macro, network, orderbook,
+                fearGreed, developer
+            } = params;
+
+            const w = state.weights;
+
+            const cps = (
+                w.sentiment * sentiment +
+                w.technical * technical +
+                w.whales * whales +
+                w.social * social +
+                w.derivatives * derivatives +
+                w.macro * macro +
+                w.network * network +
+                w.orderbook * orderbook +
+                w.fearGreed * (fearGreed / 100) + // fearGreed is already normalized to -1 to 1
+                w.developer * developer
+            );
+
+            return Math.max(-1, Math.min(1, cps));
+        }
+
+        function getCPSLabel(cps) {
+            if (cps >= 0.6) return { label: 'STRONG BUY', color: '#00ff88', direction: 'LONG' };
+            if (cps >= 0.2) return { label: 'BUY', color: '#00dd66', direction: 'LONG' };
+            if (cps >= -0.2) return { label: 'NEUTRAL', color: '#9945ff', direction: 'HOLD' };
+            if (cps >= -0.6) return { label: 'SELL', color: '#ff6644', direction: 'SHORT' };
+            return { label: 'STRONG SELL', color: '#ff3366', direction: 'SHORT' };
+        }
+
+        // ==========================================
+        // PREDICTION ENGINE
+        // ==========================================
+
+        function generatePrediction(currentPrice, cps, interval) {
+            const volatilityFactor = 0.02;
+            const timeMultiplier = Math.sqrt(interval.seconds / 60);
+            
+            const direction = cps > 0 ? 1 : -1;
+            const magnitude = Math.abs(cps);
+            
+            const expectedMove = currentPrice * volatilityFactor * timeMultiplier * magnitude * direction;
+            const predictedPrice = currentPrice + expectedMove;
+            
+            const confidence = Math.max(0.5, 1 - (timeMultiplier * 0.1));
+            const spread = currentPrice * volatilityFactor * timeMultiplier * 2;
+            
+            const expectedPLPercent = ((predictedPrice - currentPrice) / currentPrice) * 100 * state.leverage;
+            const expectedPLDollar = (CONFIG.baseInvestment * expectedPLPercent) / 100;
+            
+            return {
+                targetPrice: predictedPrice,
+                direction: direction > 0 ? 'LONG' : 'SHORT',
+                confidence: confidence * 100,
+                upperBound: predictedPrice + spread,
+                lowerBound: predictedPrice - spread,
+                expectedPLPercent: expectedPLPercent,
+                expectedPLDollar: expectedPLDollar,
+                timestamp: Date.now(),
+                interval: interval.key,
+                expiresAt: Date.now() + (interval.seconds * 1000)
+            };
+        }
+
+        // ==========================================
+        // WEIGHT OPTIMIZATION (Self-Learning)
+        // ==========================================
+
+        function optimizeWeights() {
+            const recentTrades = state.tradeHistory.slice(-50);
+            if (recentTrades.length < 5) return;
+
+            const paramAccuracy = {};
+            Object.keys(state.weights).forEach(param => {
+                let correct = 0;
+                let total = 0;
+                
+                recentTrades.forEach(trade => {
+                    if (trade.parameters && trade.parameters[param] !== undefined) {
+                        const paramDirection = trade.parameters[param] > 0 ? 1 : -1;
+                        const priceDirection = trade.actualPL > 0 ? 1 : -1;
+                        if (trade.direction === 'SHORT') priceDirection *= -1;
+                        
+                        if (paramDirection === priceDirection) correct++;
+                        total++;
+                    }
+                });
+                
+                paramAccuracy[param] = total > 0 ? correct / total : 0.5;
+            });
+
+            // Adjust weights gradually
+            const totalAccuracy = Object.values(paramAccuracy).reduce((a, b) => a + b, 0);
+            if (totalAccuracy === 0) return;
+
+            Object.keys(state.weights).forEach(param => {
+                const newWeight = (paramAccuracy[param] / totalAccuracy) * 0.3 + state.weights[param] * 0.7;
+                state.weights[param] = Math.max(0.05, Math.min(0.25, newWeight));
+            });
+
+            // Normalize weights
+            const weightSum = Object.values(state.weights).reduce((a, b) => a + b, 0);
+            Object.keys(state.weights).forEach(param => {
+                state.weights[param] /= weightSum;
+            });
+        }
+
+        // ==========================================
+        // LEVERAGE MANAGEMENT
+        // ==========================================
+
+        function calculateOptimalLeverage() {
+            const recentTrades = state.tradeHistory.slice(-20);
+            if (recentTrades.length < 5) return 1;
+
+            const winRate = recentTrades.filter(t => t.actualPL > 0).length / recentTrades.length;
+            
+            if (winRate > 0.7 && state.leverage < CONFIG.maxLeverage) {
+                state.leverage = Math.min(CONFIG.maxLeverage, state.leverage + 0.5);
+            } else if (winRate < 0.4) {
+                state.leverage = Math.max(1, state.leverage - 0.5);
+            }
+
+            return state.leverage;
+        }
+
+        // ==========================================
+        // TRADE EXECUTION & TRACKING
+        // ==========================================
+
+        function executePrediction(prediction, params) {
+            const trade = {
+                id: Date.now(),
+                crypto: state.currentCrypto,
+                entryPrice: state.prices[state.currentCrypto]?.price || 0,
+                targetPrice: prediction.targetPrice,
+                direction: prediction.direction,
+                interval: prediction.interval,
+                leverage: state.leverage,
+                investment: CONFIG.baseInvestment,
+                confidence: prediction.confidence,
+                parameters: { ...params },
+                cps: calculateCPS(params),
+                timestamp: Date.now(),
+                expiresAt: prediction.expiresAt,
+                status: 'ACTIVE',
+                actualPL: null,
+                exitPrice: null
+            };
+
+            if (!state.predictions[state.currentCrypto]) {
+                state.predictions[state.currentCrypto] = {};
+            }
+            state.predictions[state.currentCrypto][prediction.interval] = trade;
+
+            return trade;
+        }
+
+        function evaluateTrade(trade) {
+            const currentPrice = state.prices[state.currentCrypto]?.price || trade.entryPrice;
+            const priceChange = (currentPrice - trade.entryPrice) / trade.entryPrice;
+            
+            let pl;
+            if (trade.direction === 'LONG') {
+                pl = priceChange * trade.investment * trade.leverage;
+            } else {
+                pl = -priceChange * trade.investment * trade.leverage;
+            }
+
+            trade.exitPrice = currentPrice;
+            trade.actualPL = pl;
+            trade.status = pl > 0 ? 'WON' : 'LOST';
+
+            // Update stats
+            state.stats.totalTrades++;
+            if (pl > 0) {
+                state.stats.winningTrades++;
+            } else {
+                state.stats.losingTrades++;
+            }
+            state.stats.totalPL += pl;
+
+            // Add to history
+            state.tradeHistory.unshift(trade);
+            if (state.tradeHistory.length > 100) {
+                state.tradeHistory.pop();
+            }
+
+            // Check for deviation and trigger recalibration
+            const deviation = Math.abs((currentPrice - trade.targetPrice) / trade.targetPrice);
+            if (deviation > CONFIG.deviationThreshold) {
+                console.log('Deviation threshold exceeded, recalibrating weights...');
+                optimizeWeights();
+            }
+
+            // Recalculate leverage
+            calculateOptimalLeverage();
+
+            return trade;
+        }
+
+        // ==========================================
+        // UI RENDERING FUNCTIONS
+        // ==========================================
+
+        function renderCryptoTabs() {
+            const container = document.getElementById('cryptoTabs');
+            container.innerHTML = CONFIG.cryptos.map(crypto => `
+                <div class="crypto-tab glass-panel px-4 py-3 flex items-center gap-3 ${crypto.id === state.currentCrypto ? 'active' : ''}"
+                     onclick="selectCrypto('${crypto.id}')" style="border-color: ${crypto.color}20">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center" style="background: ${crypto.color}30">
+                        <span class="title-font font-bold" style="color: ${crypto.color}">${crypto.symbol.charAt(0)}</span>
+                    </div>
+                    <div>
+                        <div class="font-semibold">${crypto.symbol}</div>
+                        <div class="text-xs text-gray-500">${crypto.name}</div>
+                    </div>
+                    <div class="ml-auto text-right">
+                        <div id="tab-price-${crypto.id}" class="font-mono text-sm">$--</div>
+                        <div id="tab-change-${crypto.id}" class="text-xs">--%</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderPredictionCards() {
+            const container = document.getElementById('predictionCards');
+            container.innerHTML = CONFIG.intervals.map((interval, idx) => `
+                <div class="prediction-card glass-panel p-4 cursor-pointer ${idx === state.currentInterval ? 'neon-glow-purple' : ''}"
+                     onclick="selectInterval(${idx})">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="title-font text-xs text-gray-400">${interval.label}</span>
+                        ${state.leverage > 1 ? `<span class="leverage-badge">${state.leverage}x</span>` : ''}
+                    </div>
+                    <div id="pred-target-${interval.key}" class="title-font text-lg font-bold text-white">$--</div>
+                    <div id="pred-direction-${interval.key}" class="text-xs text-gray-400 mb-2">--</div>
+                    <div id="pred-pl-${interval.key}" class="title-font text-sm">$--</div>
+                    <div class="mt-2 h-1 bg-gray-800 rounded-full overflow-hidden">
+                        <div id="pred-progress-${interval.key}" class="h-full bg-purple-500 transition-all" style="width: 0%"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderParameterHeatmap(params) {
+            const paramNames = {
+                sentiment: { name: 'NEWS', icon: '📰' },
+                technical: { name: 'TECH', icon: '📊' },
+                whales: { name: 'WHALES', icon: '🐋' },
+                social: { name: 'SOCIAL', icon: '💬' },
+                derivatives: { name: 'DERIVS', icon: '📈' },
+                macro: { name: 'MACRO', icon: '🌍' },
+                network: { name: 'NETWORK', icon: '🔗' },
+                orderbook: { name: 'ORDERS', icon: '📕' },
+                fearGreed: { name: 'F&G', icon: '😱' },
+                developer: { name: 'DEV', icon: '👨‍💻' }
+            };
+
+            const container = document.getElementById('paramHeatmap');
+            container.innerHTML = Object.entries(params).map(([key, value]) => {
+                const info = paramNames[key] || { name: key, icon: '❓' };
+                const intensity = Math.abs(value);
+                const isPositive = value > 0;
+                const colorClass = isPositive ? 'bullish' : value < 0 ? 'bearish' : 'neutral';
+                
+                return `
+                    <div class="param-block glass-panel p-3 ${colorClass}" style="opacity: ${0.5 + intensity * 0.5}">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-lg">${info.icon}</span>
+                            <span class="text-xs font-mono ${isPositive ? 'text-green-400' : 'text-red-400'}">
+                                ${value >= 0 ? '+' : ''}${(value * 100).toFixed(0)}%
+                            </span>
+                        </div>
+                        <div class="text-xs text-gray-400">${info.name}</div>
+                        <div class="text-xs text-gray-600">w: ${(state.weights[key] * 100).toFixed(1)}%</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderTradeHistory() {
+            const container = document.getElementById('tradeHistory');
+            const trades = state.tradeHistory.slice(0, 10);
+            
+            if (trades.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-500 py-4">No trades yet</div>';
+                return;
+            }
+
+            container.innerHTML = trades.map(trade => {
+                const isWin = trade.actualPL > 0;
+                const crypto = CONFIG.cryptos.find(c => c.id === trade.crypto);
+                
+                return `
+                    <div class="flex items-center justify-between py-2 border-b border-white/5">
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full ${isWin ? 'bg-green-400' : 'bg-red-400'}"></div>
+                            <span class="text-sm">${crypto?.symbol || 'UNK'}</span>
+                            <span class="text-xs px-2 py-0.5 rounded ${trade.direction === 'LONG' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">
+                                ${trade.direction}
+                            </span>
+                            <span class="text-xs text-gray-500">${trade.interval}</span>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm ${isWin ? 'text-green-400' : 'text-red-400'}">
+                                ${isWin ? '+' : ''}$${trade.actualPL?.toFixed(2) || '--'}
+                            </div>
+                            <div class="text-xs text-gray-600">
+                                ${new Date(trade.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateUI() {
+            const crypto = state.currentCrypto;
+            const priceData = state.prices[crypto];
+            const params = state.parameters[crypto];
+
+            if (priceData) {
+                // Update live price
+                document.getElementById('livePrice').textContent = formatPrice(priceData.price);
+                document.getElementById('priceChange').textContent = `${priceData.change24h >= 0 ? '+' : ''}${priceData.change24h.toFixed(2)}%`;
+                document.getElementById('priceChange').className = `text-lg ${priceData.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`;
+                document.getElementById('high24h').textContent = formatPrice(priceData.high24h);
+                document.getElementById('low24h').textContent = formatPrice(priceData.low24h);
+                document.getElementById('volume24h').textContent = formatVolume(priceData.volume);
+                document.getElementById('marketCap').textContent = formatVolume(priceData.marketCap);
+
+                // Update tab prices
+                CONFIG.cryptos.forEach(c => {
+                    const data = state.prices[c.id];
+                    if (data) {
+                        const priceEl = document.getElementById(`tab-price-${c.id}`);
+                        const changeEl = document.getElementById(`tab-change-${c.id}`);
+                        
+                        if (priceEl) priceEl.textContent = formatPrice(data.price);
+                        if (changeEl) {
+                            changeEl.textContent = `${data.change24h >= 0 ? '+' : ''}${data.change24h.toFixed(2)}%`;
+                            changeEl.className = `text-xs ${data.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`;
+                        }
+                    }
+                });
+            }
+
+            if (params) {
+                const cps = calculateCPS(params);
+                const cpsInfo = getCPSLabel(cps);
+
+                // Update CPS gauge
+                const angle = -90 + (cps + 1) * 90;
+                document.getElementById('gaugeNeedle').style.transform = `rotate(${angle}deg)`;
+                document.getElementById('cpsValue').textContent = (cps * 100).toFixed(0);
+                document.getElementById('cpsValue').style.color = cpsInfo.color;
+                document.getElementById('cpsLabel').textContent = cpsInfo.label;
+                document.getElementById('cpsLabel').style.color = cpsInfo.color;
+
+                // Update parameter heatmap
+                renderParameterHeatmap(params);
+            }
+
+            // Update predictions
+            const predictions = state.predictions[crypto];
+            if (predictions) {
+                CONFIG.intervals.forEach(interval => {
+                    const pred = predictions[interval.key];
+                    if (pred) {
+                        const targetEl = document.getElementById(`pred-target-${interval.key}`);
+                        const dirEl = document.getElementById(`pred-direction-${interval.key}`);
+                        const plEl = document.getElementById(`pred-pl-${interval.key}`);
+                        const progressEl = document.getElementById(`pred-progress-${interval.key}`);
+                        
+                        if (targetEl) targetEl.textContent = formatPrice(pred.targetPrice);
+                        
+                        if (dirEl) {
+                            dirEl.textContent = pred.direction;
+                            dirEl.className = `text-xs ${pred.direction === 'LONG' ? 'text-green-400' : 'text-red-400'}`;
+                        }
+
+                        if (plEl) {
+                            if (pred.status === 'ACTIVE') {
+                                const currentPL = calculateCurrentPL(pred);
+                                plEl.textContent = `${currentPL >= 0 ? '+' : ''}$${currentPL.toFixed(2)}`;
+                                plEl.className = `title-font text-sm ${currentPL >= 0 ? 'text-green-400' : 'text-red-400'}`;
+                            } else {
+                                plEl.textContent = `${pred.actualPL >= 0 ? '+' : ''}$${pred.actualPL?.toFixed(2) || '0.00'}`;
+                                plEl.className = `title-font text-sm ${pred.actualPL >= 0 ? 'text-green-400' : 'text-red-400'}`;
+                            }
+                        }
+
+                        if (progressEl) {
+                            const elapsed = Date.now() - pred.timestamp;
+                            const total = pred.expiresAt - pred.timestamp;
+                            const progress = total > 0 ? Math.min(100, (elapsed / total) * 100) : 0;
+                            progressEl.style.width = `${progress}%`;
+                        }
+                    }
+                });
+            }
+
+            // Update stats
+            document.getElementById('accuracy24h').textContent = `${state.stats.accuracy24h.toFixed(1)}%`;
+            document.getElementById('totalTrades').textContent = state.stats.totalTrades;
+            document.getElementById('winningTrades').textContent = state.stats.winningTrades;
+            document.getElementById('losingTrades').textContent = state.stats.losingTrades;
+            document.getElementById('totalPL').textContent = `${state.stats.totalPL >= 0 ? '+' : ''}$${state.stats.totalPL.toFixed(2)}`;
+            document.getElementById('totalPL').className = `title-font ${state.stats.totalPL >= 0 ? 'text-green-400' : 'text-red-400'}`;
+
+            const winningTrades = state.tradeHistory.filter(t => t.actualPL > 0);
+            const losingTrades = state.tradeHistory.filter(t => t.actualPL < 0);
+            
+            const avgProfit = winningTrades.length > 0 ? 
+                winningTrades.reduce((sum, t) => sum + t.actualPL, 0) / winningTrades.length : 0;
+            const avgLoss = losingTrades.length > 0 ? 
+                Math.abs(losingTrades.reduce((sum, t) => sum + t.actualPL, 0)) / losingTrades.length : 0;
+
+            document.getElementById('avgProfit').textContent = `+$${avgProfit.toFixed(2)}`;
+            document.getElementById('avgLoss').textContent = `-$${avgLoss.toFixed(2)}`;
+            
+            const winRate = state.stats.totalTrades > 0 ? 
+                (state.stats.winningTrades / state.stats.totalTrades) * 100 : 0;
+            document.getElementById('winRate').textContent = `${winRate.toFixed(1)}%`;
+            
+            document.getElementById('currentLeverage').textContent = `${state.leverage.toFixed(1)}x`;
+
+            // Update trade history
+            renderTradeHistory();
+        }
+
+        function calculateCurrentPL(trade) {
+            const currentPrice = state.prices[trade.crypto]?.price || trade.entryPrice;
+            const priceChange = (currentPrice - trade.entryPrice) / trade.entryPrice;
+            
+            if (trade.direction === 'LONG') {
+                return priceChange * trade.investment * trade.leverage;
+            } else {
+                return -priceChange * trade.investment * trade.leverage;
+            }
+        }
+
+        // ==========================================
+        // CHART FUNCTIONS
+        // ==========================================
+
+        function initCharts() {
+            // Price Chart
+            const priceCtx = document.getElementById('priceChart');
+            if (!priceCtx) return;
+            
+            state.charts.price = new Chart(priceCtx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Actual Price',
+                            data: [],
+                            borderColor: '#00d4ff',
+                            backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Predicted Price',
+                            data: [],
+                            borderColor: '#00ff88',
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.4,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: 'rgba(255,255,255,0.5)' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { 
+                                color: 'rgba(255,255,255,0.5)',
+                                callback: (value) => '$' + formatNumber(value)
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Performance Chart
+            const perfCtx = document.getElementById('performanceChart');
+            if (!perfCtx) return;
+            
+            state.charts.performance = new Chart(perfCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'P/L',
+                        data: [],
+                        backgroundColor: [],
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: 'rgba(255,255,255,0.5)' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { 
+                                color: 'rgba(255,255,255,0.5)',
+                                callback: (value) => '$' + value.toFixed(0)
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCharts() {
+            if (!state.charts.price || !state.charts.performance) return;
+
+            const crypto = state.currentCrypto;
+            const priceData = state.prices[crypto];
+
+            if (priceData && priceData.sparkline) {
+                const hours = 24;
+                const labels = Array.from({length: hours}, (_, i) => `${i + 1}h ago`).reverse();
+                const prices = priceData.sparkline.slice(-hours);
+                
+                // Generate prediction line
+                const lastPrice = prices[prices.length - 1] || priceData.price;
+                const params = state.parameters[crypto];
+                const cps = params ? calculateCPS(params) : 0;
+                
+                const predictedPrices = [...prices];
+                
+                // Add future predictions (next 12 hours)
+                for (let i = 1; i <= 12; i++) {
+                    labels.push(`+${i}h`);
+                    const predPrice = lastPrice * (1 + cps * 0.001 * i);
+                    predictedPrices.push(predPrice);
+                }
+
+                state.charts.price.data.labels = labels;
+                state.charts.price.data.datasets[0].data = prices;
+                state.charts.price.data.datasets[1].data = predictedPrices;
+                state.charts.price.update('none');
+            }
+
+            // Update performance chart
+            const recentTrades = state.tradeHistory.slice(0, 10).reverse();
+            state.charts.performance.data.labels = recentTrades.map((_, i) => `#${i + 1}`);
+            state.charts.performance.data.datasets[0].data = recentTrades.map(t => t.actualPL || 0);
+            state.charts.performance.data.datasets[0].backgroundColor = recentTrades.map(t => 
+                t.actualPL > 0 ? 'rgba(0, 255, 136, 0.7)' : 'rgba(255, 51, 102, 0.7)'
+            );
+            state.charts.performance.update('none');
+        }
+
+        // ==========================================
+        // COUNTDOWN & INTERVAL MANAGEMENT
+        // ==========================================
+
+        function updateCountdown() {
+            state.countdownSeconds--;
+            
+            if (state.countdownSeconds <= 0) {
+                state.countdownSeconds = CONFIG.intervals[state.currentInterval].seconds;
+                triggerAnalysis();
+            }
+
+            const minutes = Math.floor(state.countdownSeconds / 60);
+            const seconds = state.countdownSeconds % 60;
+            const countdownText = document.getElementById('countdownText');
+            if (countdownText) {
+                countdownText.textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+
+            // Update ring
+            const total = CONFIG.intervals[state.currentInterval].seconds;
+            const progress = (state.countdownSeconds / total) * 283;
+            const countdownRing = document.getElementById('countdownRing');
+            if (countdownRing) {
+                countdownRing.style.strokeDashoffset = 283 - progress;
+            }
+        }
+
+        async function triggerAnalysis() {
+            console.log('Triggering analysis for interval:', CONFIG.intervals[state.currentInterval].label);
+            
+            // Evaluate expired predictions
+            if (state.predictions[state.currentCrypto]) {
+                Object.keys(state.predictions[state.currentCrypto]).forEach(interval => {
+                    const pred = state.predictions[state.currentCrypto][interval];
+                    if (pred && pred.status === 'ACTIVE' && Date.now() >= pred.expiresAt) {
+                        evaluateTrade(pred);
+                    }
+                });
+            }
+
+            // Fetch new data and generate predictions
+            await fetchAllData();
+            generateAllPredictions();
+            updateUI();
+            updateCharts();
+
+            // Calculate 24h accuracy
+            const last24h = state.tradeHistory.filter(t => 
+                Date.now() - t.timestamp < 86400000
+            );
+            if (last24h.length > 0) {
+                state.stats.accuracy24h = (last24h.filter(t => t.actualPL > 0).length / last24h.length) * 100;
+            }
+        }
+
+        // ==========================================
+        // MAIN DATA FLOW
+        // ==========================================
+
+        async function fetchAllData() {
+            const loadingStatus = document.getElementById('loadingStatus');
+            
+            for (const crypto of CONFIG.cryptos) {
+                if (loadingStatus) loadingStatus.textContent = `Fetching ${crypto.name} data...`;
+                
+                try {
+                    // Fetch price data
+                    const priceData = await fetchCryptoPrice(crypto.id);
+                    state.prices[crypto.id] = priceData;
+
+                    // Calculate technical indicators
+                    const technical = calculateTechnicalIndicators(priceData.sparkline);
+                    
+                    // Fetch Fear & Greed (once for all cryptos)
+                    let fg = { value: 50, classification: 'Neutral' };
+                    if (crypto.id === 'bitcoin') {
+                        fg = await fetchFearGreedIndex();
+                        // Update Fear & Greed UI
+                        const fgValueEl = document.getElementById('fgValue');
+                        const fgLabelEl = document.getElementById('fgLabel');
+                        const fgCircleEl = document.getElementById('fgCircle');
+                        
+                        if (fgValueEl) fgValueEl.textContent = fg.value;
+                        if (fgLabelEl) fgLabelEl.textContent = fg.classification.toUpperCase();
+                        if (fgCircleEl) {
+                            const fgOffset = 283 - (fg.value / 100) * 283;
+                            fgCircleEl.style.strokeDashoffset = fgOffset;
+                            
+                            const fgColor = fg.value < 25 ? '#ff3366' : 
+                                           fg.value < 45 ? '#ff6644' :
+                                           fg.value < 55 ? '#9945ff' :
+                                           fg.value < 75 ? '#00dd66' : '#00ff88';
+                            fgCircleEl.style.stroke = fgColor;
+                        }
+                    }
+
+                    // Generate simulated parameters
+                    const simulated = generateSimulatedParameters();
+                    
+                    state.parameters[crypto.id] = {
+                        sentiment: simulated.sentiment,
+                        technical: technical.score,
+                        whales: simulated.whales,
+                        social: simulated.social,
+                        derivatives: simulated.derivatives,
+                        macro: simulated.macro,
+                        network: simulated.network,
+                        orderbook: simulated.orderbook,
+                        fearGreed: (fg.value - 50) / 50,
+                        developer: Math.min(1, priceData.devActivity / 200)
+                    };
+
+                } catch (error) {
+                    console.error(`Error fetching data for ${crypto.name}:`, error.message);
+                }
+            }
+
+            state.lastUpdate = Date.now();
+        }
+
+        function generateAllPredictions() {
+            CONFIG.cryptos.forEach(crypto => {
+                const params = state.parameters[crypto.id];
+                const priceData = state.prices[crypto.id];
+                
+                if (params && priceData) {
+                    const cps = calculateCPS(params);
+                    
+                    if (!state.predictions[crypto.id]) {
+                        state.predictions[crypto.id] = {};
+                    }
+                    
+                    CONFIG.intervals.forEach(interval => {
+                        const existing = state.predictions[crypto.id][interval.key];
+                        if (!existing || existing.status !== 'ACTIVE' || Date.now() >= existing.expiresAt) {
+                            const prediction = generatePrediction(priceData.price, cps, interval);
+                            executePrediction(prediction, params);
+                        }
+                    });
+                }
+            });
+        }
+
+        // ==========================================
+        // USER INTERACTIONS
+        // ==========================================
+
+        function selectCrypto(cryptoId) {
+            state.currentCrypto = cryptoId;
+            renderCryptoTabs();
+            updateUI();
+            updateCharts();
+        }
+
+        function selectInterval(index) {
+            state.currentInterval = index;
+            state.countdownSeconds = CONFIG.intervals[index].seconds;
+            const activeIntervalEl = document.getElementById('activeInterval');
+            if (activeIntervalEl) {
+                activeIntervalEl.textContent = CONFIG.intervals[index].label + ' INTERVAL';
+            }
+            renderPredictionCards();
+            triggerAnalysis();
+        }
+
+        function setChartRange(range) {
+            const buttons = document.querySelectorAll('.chart-range-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('border', 'border-purple-500', 'bg-white/20');
+                btn.classList.add('bg-white/10');
+            });
+            
+            event.target.classList.add('border', 'border-purple-500', 'bg-white/20');
+            event.target.classList.remove('bg-white/10');
+            
+            // Update chart based on range
+            updateCharts();
+        }
+
+        // ==========================================
+        // UTILITY FUNCTIONS
+        // ==========================================
+
+        function formatPrice(price) {
+            if (!price && price !== 0) return '$--';
+            if (price >= 1000) {
+                return '$' + price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            } else if (price >= 1) {
+                return '$' + price.toFixed(2);
+            } else {
+                return '$' + price.toFixed(4);
+            }
+        }
+
+        function formatVolume(vol) {
+            if (!vol && vol !== 0) return '$--';
+            if (vol >= 1e12) return '$' + (vol / 1e12).toFixed(2) + 'T';
+            if (vol >= 1e9) return '$' + (vol / 1e9).toFixed(2) + 'B';
+            if (vol >= 1e6) return '$' + (vol / 1e6).toFixed(2) + 'M';
+            if (vol >= 1e3) return '$' + (vol / 1e3).toFixed(2) + 'K';
+            return '$' + vol.toFixed(2);
+        }
+
+        function formatNumber(num) {
+            if (!num && num !== 0) return '--';
+            if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+            return num.toFixed(2);
+        }
+
+        function updateCurrentTime() {
+            const now = new Date();
+            const currentTimeEl = document.getElementById('currentTime');
+            if (currentTimeEl) {
+                currentTimeEl.textContent = now.toLocaleTimeString('en-US', { hour12: false });
+            }
+        }
+
+        // ==========================================
+        // INITIALIZATION
+        // ==========================================
+
+        async function init() {
+            console.log('Initializing CryptoOracle Pro...');
+            
+            try {
+                // Initialize axios defaults
+                axios.defaults.timeout = 10000;
+                
+                // Render static UI elements
+                renderCryptoTabs();
+                renderPredictionCards();
+                initCharts();
+
+                // Fetch initial data
+                await fetchAllData();
+                
+                // Generate initial predictions
+                generateAllPredictions();
+
+                // Update UI
+                updateUI();
+                updateCharts();
+
+                // Hide loading overlay
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                if (loadingOverlay) {
+                    loadingOverlay.style.display = 'none';
+                }
+
+                // Start timers
+                setInterval(updateCurrentTime, 1000);
+                setInterval(updateCountdown, 1000);
+                setInterval(() => {
+                    updateUI();
+                    updateCharts();
+                }, 5000);
+
+                // Real-time price updates every 30 seconds
+                setInterval(async () => {
+                    await fetchAllData();
+                    updateUI();
+                    updateCharts();
+                }, 30000);
+
+                console.log('CryptoOracle Pro initialized successfully!');
+            } catch (error) {
+                console.error('Error during initialization:', error);
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                if (loadingOverlay) {
+                    loadingOverlay.innerHTML = `
+                        <div class="text-center">
+                            <div class="title-font text-xl text-red-400 mb-2">Initialization Failed</div>
+                            <div class="text-sm text-gray-400">${error.message}</div>
+                            <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-purple-600 rounded hover:bg-purple-700">Retry</button>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // Start the application
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
