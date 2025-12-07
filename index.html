@@ -6,7 +6,6 @@
     <title>CryptoOracle Pro - AI Prediction Engine (Bybit)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -19,11 +18,7 @@
             --glass-border: rgba(255, 255, 255, 0.1);
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Rajdhani', sans-serif;
@@ -35,10 +30,8 @@
 
         .cyber-grid {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             background-image: 
                 linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
@@ -52,45 +45,21 @@
             backdrop-filter: blur(20px);
             border: 1px solid var(--glass-border);
             border-radius: 16px;
-            box-shadow: 
-                0 8px 32px rgba(0, 0, 0, 0.4),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
         }
 
-        .neon-glow-green {
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3), 0 0 40px rgba(0, 255, 136, 0.1);
-        }
+        .neon-glow-green { box-shadow: 0 0 20px rgba(0, 255, 136, 0.3), 0 0 40px rgba(0, 255, 136, 0.1); }
+        .neon-glow-red { box-shadow: 0 0 20px rgba(255, 51, 102, 0.3), 0 0 40px rgba(255, 51, 102, 0.1); }
+        .neon-glow-purple { box-shadow: 0 0 20px rgba(153, 69, 255, 0.3), 0 0 40px rgba(153, 69, 255, 0.1); }
 
-        .neon-glow-red {
-            box-shadow: 0 0 20px rgba(255, 51, 102, 0.3), 0 0 40px rgba(255, 51, 102, 0.1);
-        }
+        .title-font { font-family: 'Orbitron', monospace; }
 
-        .neon-glow-purple {
-            box-shadow: 0 0 20px rgba(153, 69, 255, 0.3), 0 0 40px rgba(153, 69, 255, 0.1);
-        }
-
-        .title-font {
-            font-family: 'Orbitron', monospace;
-        }
-
-        .gauge-container {
-            position: relative;
-            width: 280px;
-            height: 160px;
-        }
-
-        .gauge-bg {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-        }
-
+        .gauge-container { position: relative; width: 280px; height: 160px; }
+        .gauge-bg { position: absolute; width: 100%; height: 100%; }
         .gauge-needle {
             position: absolute;
-            bottom: 10px;
-            left: 50%;
-            width: 4px;
-            height: 100px;
+            bottom: 10px; left: 50%;
+            width: 4px; height: 100px;
             background: linear-gradient(to top, #fff, transparent);
             transform-origin: bottom center;
             transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
@@ -106,31 +75,16 @@
         .param-block::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             opacity: 0.3;
             transition: opacity 0.3s ease;
         }
 
-        .param-block.bullish::before {
-            background: radial-gradient(ellipse at center, var(--neon-green), transparent 70%);
-        }
+        .param-block.bullish::before { background: radial-gradient(ellipse at center, var(--neon-green), transparent 70%); }
+        .param-block.bearish::before { background: radial-gradient(ellipse at center, var(--neon-red), transparent 70%); }
+        .param-block.neutral::before { background: radial-gradient(ellipse at center, var(--neon-purple), transparent 70%); }
 
-        .param-block.bearish::before {
-            background: radial-gradient(ellipse at center, var(--neon-red), transparent 70%);
-        }
-
-        .param-block.neutral::before {
-            background: radial-gradient(ellipse at center, var(--neon-purple), transparent 70%);
-        }
-
-        .crypto-tab {
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
+        .crypto-tab { transition: all 0.3s ease; cursor: pointer; }
         .crypto-tab.active {
             background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(153, 69, 255, 0.2));
             border-color: var(--neon-green);
@@ -142,18 +96,11 @@
             transition: stroke-dashoffset 1s linear;
         }
 
-        .prediction-card {
-            transition: all 0.3s ease;
-        }
+        .prediction-card { transition: all 0.3s ease; }
+        .prediction-card:hover { transform: translateY(-5px); }
+        .prediction-card.locked { border: 1px solid var(--neon-purple); }
 
-        .prediction-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .pulse-dot {
-            animation: pulse 2s infinite;
-        }
-
+        .pulse-dot { animation: pulse 2s infinite; }
         @keyframes pulse {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.5; transform: scale(1.2); }
@@ -161,8 +108,7 @@
 
         .scan-line {
             position: absolute;
-            width: 100%;
-            height: 2px;
+            width: 100%; height: 2px;
             background: linear-gradient(90deg, transparent, var(--neon-green), transparent);
             animation: scan 3s linear infinite;
         }
@@ -184,23 +130,9 @@
             100% { background-position: -200% 0; }
         }
 
-        .stat-value {
-            font-variant-numeric: tabular-nums;
-        }
-
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.3);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--neon-purple);
-            border-radius: 4px;
-        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); }
+        ::-webkit-scrollbar-thumb { background: var(--neon-purple); border-radius: 4px; }
 
         .leverage-badge {
             font-size: 10px;
@@ -218,36 +150,31 @@
             font-size: 12px;
         }
 
-        .connection-status.connected {
-            background: rgba(0, 255, 136, 0.2);
-            border: 1px solid rgba(0, 255, 136, 0.3);
-        }
+        .connection-status.connected { background: rgba(0, 255, 136, 0.2); border: 1px solid rgba(0, 255, 136, 0.3); }
+        .connection-status.disconnected { background: rgba(255, 51, 102, 0.2); border: 1px solid rgba(255, 51, 102, 0.3); }
+        .connection-status.connecting { background: rgba(255, 149, 0, 0.2); border: 1px solid rgba(255, 149, 0, 0.3); }
 
-        .connection-status.disconnected {
-            background: rgba(255, 51, 102, 0.2);
-            border: 1px solid rgba(255, 51, 102, 0.3);
-        }
+        .funding-rate { font-size: 11px; padding: 2px 6px; border-radius: 4px; }
+        .funding-rate.positive { background: rgba(0, 255, 136, 0.2); color: #00ff88; }
+        .funding-rate.negative { background: rgba(255, 51, 102, 0.2); color: #ff3366; }
 
-        .connection-status.connecting {
-            background: rgba(255, 149, 0, 0.2);
-            border: 1px solid rgba(255, 149, 0, 0.3);
-        }
+        .trade-row { transition: all 0.3s ease; }
+        .trade-row:hover { background: rgba(255, 255, 255, 0.05); }
 
-        .funding-rate {
-            font-size: 11px;
+        .accuracy-badge {
+            font-size: 10px;
             padding: 2px 6px;
             border-radius: 4px;
         }
-        
-        .funding-rate.positive {
-            background: rgba(0, 255, 136, 0.2);
-            color: #00ff88;
-        }
-        
-        .funding-rate.negative {
-            background: rgba(255, 51, 102, 0.2);
-            color: #ff3366;
-        }
+        .accuracy-badge.high { background: rgba(0, 255, 136, 0.3); color: #00ff88; }
+        .accuracy-badge.medium { background: rgba(255, 149, 0, 0.3); color: #ff9500; }
+        .accuracy-badge.low { background: rgba(255, 51, 102, 0.3); color: #ff3366; }
+
+        .status-active { color: var(--neon-blue); }
+        .status-won { color: var(--neon-green); }
+        .status-lost { color: var(--neon-red); }
+
+        .lock-icon { font-size: 10px; margin-left: 4px; }
     </style>
 </head>
 <body>
@@ -266,12 +193,11 @@
                     <h1 class="title-font text-2xl font-bold bg-gradient-to-r from-green-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
                         CRYPTOORACLE PRO
                     </h1>
-                    <p class="text-xs text-gray-400">Bybit Real-Time Data • AI Prediction Engine</p>
+                    <p class="text-xs text-gray-400">Bybit Real-Time • $100 Investment Tracker</p>
                 </div>
             </div>
             
             <div class="flex items-center gap-4 flex-wrap">
-                <!-- WebSocket Status -->
                 <div id="wsStatus" class="connection-status connecting">
                     <div class="w-2 h-2 rounded-full bg-orange-400 animate-pulse"></div>
                     <span>Connecting...</span>
@@ -284,13 +210,13 @@
                 </div>
                 
                 <div class="glass-panel px-4 py-2">
-                    <div class="text-xs text-gray-400">24H Accuracy</div>
+                    <div class="text-xs text-gray-400">Win Rate</div>
                     <div id="accuracy24h" class="title-font text-xl text-green-400">--%</div>
                 </div>
                 
                 <div class="glass-panel px-4 py-2">
                     <div class="text-xs text-gray-400">Total Trades</div>
-                    <div id="totalTrades" class="title-font text-xl text-purple-400">--</div>
+                    <div id="totalTrades" class="title-font text-xl text-purple-400">0</div>
                 </div>
             </div>
         </div>
@@ -298,16 +224,14 @@
 
     <!-- Crypto Tabs -->
     <nav class="relative z-10 p-4">
-        <div class="max-w-7xl mx-auto flex gap-3 overflow-x-auto pb-2" id="cryptoTabs">
-            <!-- Tabs will be generated by JS -->
-        </div>
+        <div class="max-w-7xl mx-auto flex gap-3 overflow-x-auto pb-2" id="cryptoTabs"></div>
     </nav>
 
     <!-- Main Dashboard -->
     <main class="relative z-10 p-4 max-w-7xl mx-auto">
-        <!-- Top Row: CPS Gauge + Live Price + Quick Stats -->
+        <!-- Top Row -->
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
-            <!-- CPS Master Gauge -->
+            <!-- CPS Gauge -->
             <div class="glass-panel p-6 neon-glow-purple col-span-1">
                 <h3 class="title-font text-sm text-gray-400 mb-4">COMPOSITE PREDICTIVE SCORE</h3>
                 <div class="flex flex-col items-center">
@@ -368,9 +292,9 @@
                 </div>
             </div>
 
-            <!-- Countdown Timer & Next Update -->
+            <!-- Countdown Timer -->
             <div class="glass-panel p-6 col-span-1">
-                <h3 class="title-font text-sm text-gray-400 mb-4">NEXT ANALYSIS</h3>
+                <h3 class="title-font text-sm text-gray-400 mb-4">NEXT PREDICTION</h3>
                 <div class="flex items-center justify-center mb-4">
                     <div class="relative">
                         <svg class="w-24 h-24 transform -rotate-90">
@@ -384,7 +308,7 @@
                 </div>
                 <div class="text-center">
                     <div id="activeInterval" class="text-sm text-purple-400">1 MIN INTERVAL</div>
-                    <div class="text-xs text-gray-500 mt-1">Auto-refresh enabled</div>
+                    <div class="text-xs text-gray-500 mt-1">Predictions locked until expiry</div>
                 </div>
             </div>
 
@@ -392,7 +316,7 @@
             <div class="glass-panel p-6 col-span-1">
                 <h3 class="title-font text-sm text-gray-400 mb-4">FEAR & GREED INDEX</h3>
                 <div class="flex items-center justify-center">
-                    <div id="fearGreedGauge" class="relative w-32 h-32">
+                    <div class="relative w-32 h-32">
                         <svg viewBox="0 0 100 100" class="w-full h-full">
                             <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8"/>
                             <circle id="fgCircle" cx="50" cy="50" r="45" fill="none" stroke="var(--neon-orange)" stroke-width="8" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="141" transform="rotate(-90 50 50)"/>
@@ -407,22 +331,19 @@
         </div>
 
         <!-- Prediction Cards Row -->
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-4" id="predictionCards">
-            <!-- Cards generated by JS -->
-        </div>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-4" id="predictionCards"></div>
 
         <!-- Main Chart Area -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-            <!-- Price Chart with Predictions -->
+            <!-- Price Chart -->
             <div class="glass-panel p-6 col-span-2 relative overflow-hidden">
                 <div class="scan-line"></div>
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="title-font text-sm text-gray-400">PRICE vs PREDICTION OVERLAY</h3>
+                    <h3 class="title-font text-sm text-gray-400">PRICE CHART & PREDICTIONS</h3>
                     <div class="flex gap-2">
                         <button onclick="setChartRange('1h')" class="chart-range-btn px-3 py-1 text-xs rounded bg-white/10 hover:bg-white/20">1H</button>
                         <button onclick="setChartRange('4h')" class="chart-range-btn px-3 py-1 text-xs rounded bg-white/10 hover:bg-white/20">4H</button>
                         <button onclick="setChartRange('1d')" class="chart-range-btn px-3 py-1 text-xs rounded bg-white/20 border border-purple-500">1D</button>
-                        <button onclick="setChartRange('1w')" class="chart-range-btn px-3 py-1 text-xs rounded bg-white/10 hover:bg-white/20">1W</button>
                     </div>
                 </div>
                 <div class="h-80">
@@ -435,76 +356,77 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <div class="w-3 h-3 rounded-full bg-green-400"></div>
-                        <span>Predicted Price</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div class="w-3 h-1 bg-purple-400/50"></div>
-                        <span>Confidence Band</span>
+                        <span>Predicted Target</span>
                     </div>
                 </div>
             </div>
 
             <!-- Parameters Heatmap -->
             <div class="glass-panel p-6 col-span-1">
-                <h3 class="title-font text-sm text-gray-400 mb-4">PARAMETER INTENSITY (Real Data)</h3>
-                <div id="paramHeatmap" class="grid grid-cols-2 gap-2">
-                    <!-- Generated by JS -->
-                </div>
+                <h3 class="title-font text-sm text-gray-400 mb-4">SIGNAL INDICATORS</h3>
+                <div id="paramHeatmap" class="grid grid-cols-2 gap-2"></div>
             </div>
         </div>
 
-        <!-- Historical Performance & Trade Log -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-            <!-- Historical Performance Chart -->
-            <div class="glass-panel p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="title-font text-sm text-gray-400">HISTORICAL PERFORMANCE</h3>
+        <!-- Trade History -->
+        <div class="glass-panel p-6 mb-4">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="title-font text-sm text-gray-400">TRADE HISTORY ($100 Investment)</h3>
+                <div class="flex items-center gap-4">
                     <div class="flex items-center gap-2">
-                        <span class="text-xs text-gray-500">Win Rate:</span>
-                        <span id="winRate" class="title-font text-green-400">--%</span>
+                        <span class="text-xs text-gray-500">Total P/L:</span>
+                        <span id="totalPL" class="title-font text-green-400">+$0.00</span>
                     </div>
-                </div>
-                <div class="h-64">
-                    <canvas id="performanceChart"></canvas>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500">Avg Accuracy:</span>
+                        <span id="avgAccuracy" class="title-font text-purple-400">--%</span>
+                    </div>
                 </div>
             </div>
-
-            <!-- Trade History Log -->
-            <div class="glass-panel p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="title-font text-sm text-gray-400">TRADE HISTORY</h3>
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs text-gray-500">P/L:</span>
-                        <span id="totalPL" class="title-font text-green-400">+$--</span>
-                    </div>
-                </div>
-                <div class="overflow-y-auto max-h-56" id="tradeHistory">
-                    <!-- Generated by JS -->
-                </div>
+            
+            <!-- Table Header -->
+            <div class="grid grid-cols-12 gap-2 text-xs text-gray-500 pb-2 border-b border-white/10 mb-2">
+                <div class="col-span-1">Time</div>
+                <div class="col-span-1">Pair</div>
+                <div class="col-span-1">Direction</div>
+                <div class="col-span-1">Interval</div>
+                <div class="col-span-2">Entry → Exit</div>
+                <div class="col-span-2">Predicted → Actual</div>
+                <div class="col-span-1">Accuracy</div>
+                <div class="col-span-1">P/L ($100)</div>
+                <div class="col-span-1">Status</div>
+            </div>
+            
+            <div class="overflow-y-auto max-h-64" id="tradeHistory">
+                <div class="text-center text-gray-500 py-8">Waiting for first prediction to complete...</div>
             </div>
         </div>
 
-        <!-- Bottom Stats Grid -->
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
             <div class="glass-panel p-4 text-center">
                 <div class="text-xs text-gray-500">Winning Trades</div>
-                <div id="winningTrades" class="title-font text-2xl text-green-400">--</div>
+                <div id="winningTrades" class="title-font text-2xl text-green-400">0</div>
             </div>
             <div class="glass-panel p-4 text-center">
                 <div class="text-xs text-gray-500">Losing Trades</div>
-                <div id="losingTrades" class="title-font text-2xl text-red-400">--</div>
+                <div id="losingTrades" class="title-font text-2xl text-red-400">0</div>
             </div>
             <div class="glass-panel p-4 text-center">
-                <div class="text-xs text-gray-500">Avg Profit</div>
-                <div id="avgProfit" class="title-font text-2xl text-green-400">+$--</div>
+                <div class="text-xs text-gray-500">Avg Win</div>
+                <div id="avgProfit" class="title-font text-2xl text-green-400">+$0</div>
             </div>
             <div class="glass-panel p-4 text-center">
                 <div class="text-xs text-gray-500">Avg Loss</div>
-                <div id="avgLoss" class="title-font text-2xl text-red-400">-$--</div>
+                <div id="avgLoss" class="title-font text-2xl text-red-400">-$0</div>
             </div>
             <div class="glass-panel p-4 text-center">
-                <div class="text-xs text-gray-500">Current Leverage</div>
-                <div id="currentLeverage" class="title-font text-2xl text-orange-400">1x</div>
+                <div class="text-xs text-gray-500">Best Trade</div>
+                <div id="bestTrade" class="title-font text-2xl text-green-400">+$0</div>
+            </div>
+            <div class="glass-panel p-4 text-center">
+                <div class="text-xs text-gray-500">Worst Trade</div>
+                <div id="worstTrade" class="title-font text-2xl text-red-400">-$0</div>
             </div>
         </div>
     </main>
@@ -523,10 +445,10 @@
 
     <script>
         // ==========================================
-        // CRYPTOORACLE PRO - BYBIT REAL-TIME VERSION
+        // CRYPTOORACLE PRO - FIXED VERSION
+        // Only real data, static predictions, proper P/L tracking
         // ==========================================
 
-        // Configuration
         const CONFIG = {
             cryptos: [
                 { id: 'BTCUSDT', symbol: 'BTC', name: 'Bitcoin', color: '#f7931a' },
@@ -544,247 +466,71 @@
                 { label: '1 DAY', seconds: 86400, key: '1d', bybit: 'D' },
                 { label: '1 WEEK', seconds: 604800, key: '1w', bybit: 'W' }
             ],
-            baseInvestment: 100,
-            maxLeverage: 5,
-            deviationThreshold: 0.05,
+            investment: 100,
             bybitRestUrl: 'https://api.bybit.com',
             bybitWsUrl: 'wss://stream.bybit.com/v5/public/linear'
         };
 
-        // State Management
+        // State
         const state = {
             currentCrypto: 'BTCUSDT',
             currentInterval: 0,
             currentChartRange: '1d',
-            prices: {},
+            
+            // Real-time prices from WebSocket
+            livePrices: {},
+            
+            // Historical klines
             klines: {},
+            
+            // Locked predictions (immutable until expiry)
             predictions: {},
+            
+            // Calculated parameters
             parameters: {},
-            fundingRates: {},
-            openInterest: {},
-            orderbooks: {},
-            weights: {
-                rsi: 0.12,
-                macd: 0.10,
-                bollingerBands: 0.08,
-                fundingRate: 0.15,
-                openInterest: 0.12,
-                volumeProfile: 0.10,
-                priceAction: 0.10,
-                orderbook: 0.08,
-                fearGreed: 0.08,
-                momentum: 0.07
-            },
+            
+            // Completed trades history
             tradeHistory: [],
+            
+            // Statistics
             stats: {
                 totalTrades: 0,
                 winningTrades: 0,
                 losingTrades: 0,
                 totalPL: 0,
-                accuracy24h: 0
+                totalAccuracy: 0
             },
-            leverage: 1,
+            
+            // Fear & Greed
+            fearGreed: { value: 50, classification: 'Neutral' },
+            
+            // Countdown
             countdownSeconds: 60,
+            
+            // Charts
             charts: {},
-            lastUpdate: null,
+            
+            // WebSocket
             ws: null,
             wsConnected: false,
-            fearGreed: { value: 50, classification: 'Neutral' }
+            wsReconnectAttempts: 0
         };
 
         // ==========================================
-        // BYBIT API FUNCTIONS
+        // BYBIT API - ONLY REAL DATA
         // ==========================================
 
         async function fetchBybitTicker(symbol) {
-            try {
-                const response = await fetch(`${CONFIG.bybitRestUrl}/v5/market/tickers?category=linear&symbol=${symbol}`);
-                const data = await response.json();
-                
-                if (data.retCode === 0 && data.result.list.length > 0) {
-                    const ticker = data.result.list[0];
-                    return {
-                        price: parseFloat(ticker.lastPrice),
-                        change24h: parseFloat(ticker.price24hPcnt) * 100,
-                        high24h: parseFloat(ticker.highPrice24h),
-                        low24h: parseFloat(ticker.lowPrice24h),
-                        volume24h: parseFloat(ticker.turnover24h),
-                        fundingRate: parseFloat(ticker.fundingRate) * 100,
-                        nextFundingTime: parseInt(ticker.nextFundingTime),
-                        bid: parseFloat(ticker.bid1Price),
-                        ask: parseFloat(ticker.ask1Price)
-                    };
-                }
-                throw new Error('Invalid response');
-            } catch (error) {
-                console.error('Error fetching Bybit ticker:', error);
-                return null;
-            }
-        }
-
-        async function fetchBybitKlines(symbol, interval = '60', limit = 200) {
-            try {
-                const response = await fetch(
-                    `${CONFIG.bybitRestUrl}/v5/market/kline?category=linear&symbol=${symbol}&interval=${interval}&limit=${limit}`
-                );
-                const data = await response.json();
-                
-                if (data.retCode === 0 && data.result.list.length > 0) {
-                    // Bybit returns newest first, we need to reverse
-                    return data.result.list.reverse().map(k => ({
-                        timestamp: parseInt(k[0]),
-                        open: parseFloat(k[1]),
-                        high: parseFloat(k[2]),
-                        low: parseFloat(k[3]),
-                        close: parseFloat(k[4]),
-                        volume: parseFloat(k[5]),
-                        turnover: parseFloat(k[6])
-                    }));
-                }
-                throw new Error('Invalid response');
-            } catch (error) {
-                console.error('Error fetching Bybit klines:', error);
-                return [];
-            }
-        }
-
-        async function fetchBybitOpenInterest(symbol) {
-            try {
-                const response = await fetch(
-                    `${CONFIG.bybitRestUrl}/v5/market/open-interest?category=linear&symbol=${symbol}&intervalTime=1h&limit=1`
-                );
-                const data = await response.json();
-                
-                if (data.retCode === 0 && data.result.list.length > 0) {
-                    return {
-                        openInterest: parseFloat(data.result.list[0].openInterest),
-                        timestamp: parseInt(data.result.list[0].timestamp)
-                    };
-                }
-                throw new Error('Invalid response');
-            } catch (error) {
-                console.error('Error fetching open interest:', error);
-                return { openInterest: 0 };
-            }
-        }
-
-        async function fetchBybitOrderbook(symbol, limit = 25) {
-            try {
-                const response = await fetch(
-                    `${CONFIG.bybitRestUrl}/v5/market/orderbook?category=linear&symbol=${symbol}&limit=${limit}`
-                );
-                const data = await response.json();
-                
-                if (data.retCode === 0) {
-                    const bids = data.result.b.map(b => ({ price: parseFloat(b[0]), qty: parseFloat(b[1]) }));
-                    const asks = data.result.a.map(a => ({ price: parseFloat(a[0]), qty: parseFloat(a[1]) }));
-                    
-                    const bidTotal = bids.reduce((sum, b) => sum + b.qty, 0);
-                    const askTotal = asks.reduce((sum, a) => sum + a.qty, 0);
-                    
-                    return {
-                        bids,
-                        asks,
-                        bidTotal,
-                        askTotal,
-                        imbalance: (bidTotal - askTotal) / (bidTotal + askTotal) // -1 to 1
-                    };
-                }
-                throw new Error('Invalid response');
-            } catch (error) {
-                console.error('Error fetching orderbook:', error);
-                return { imbalance: 0 };
-            }
-        }
-
-        async function fetchFearGreedIndex() {
-            try {
-                const response = await fetch('https://api.alternative.me/fng/?limit=1');
-                const data = await response.json();
-                
-                if (data && data.data && data.data.length > 0) {
-                    return {
-                        value: parseInt(data.data[0].value),
-                        classification: data.data[0].value_classification
-                    };
-                }
-            } catch (error) {
-                console.error('Error fetching Fear & Greed:', error);
-            }
-            return { value: 50, classification: 'Neutral' };
-        }
-
-        // ==========================================
-        // WEBSOCKET CONNECTION
-        // ==========================================
-
-        function initWebSocket() {
-            updateWSStatus('connecting');
+            const response = await fetch(`${CONFIG.bybitRestUrl}/v5/market/tickers?category=linear&symbol=${symbol}`);
+            const data = await response.json();
             
-            state.ws = new WebSocket(CONFIG.bybitWsUrl);
-            
-            state.ws.onopen = () => {
-                console.log('WebSocket connected to Bybit');
-                state.wsConnected = true;
-                updateWSStatus('connected');
-                
-                // Subscribe to all crypto tickers
-                const symbols = CONFIG.cryptos.map(c => c.id);
-                const subscribeMsg = {
-                    op: 'subscribe',
-                    args: symbols.map(s => `tickers.${s}`)
-                };
-                state.ws.send(JSON.stringify(subscribeMsg));
-                
-                // Also subscribe to klines for current crypto
-                subscribeToKlines(state.currentCrypto);
-            };
-            
-            state.ws.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    
-                    if (data.topic && data.topic.startsWith('tickers.')) {
-                        handleTickerUpdate(data);
-                    } else if (data.topic && data.topic.startsWith('kline.')) {
-                        handleKlineUpdate(data);
-                    }
-                } catch (error) {
-                    console.error('Error parsing WS message:', error);
-                }
-            };
-            
-            state.ws.onclose = () => {
-                console.log('WebSocket disconnected');
-                state.wsConnected = false;
-                updateWSStatus('disconnected');
-                
-                // Reconnect after 5 seconds
-                setTimeout(initWebSocket, 5000);
-            };
-            
-            state.ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                updateWSStatus('disconnected');
-            };
-        }
-
-        function subscribeToKlines(symbol) {
-            if (state.ws && state.wsConnected) {
-                const interval = CONFIG.intervals[state.currentInterval].bybit;
-                const subscribeMsg = {
-                    op: 'subscribe',
-                    args: [`kline.${interval}.${symbol}`]
-                };
-                state.ws.send(JSON.stringify(subscribeMsg));
+            if (data.retCode !== 0 || !data.result.list.length) {
+                throw new Error(`Failed to fetch ticker for ${symbol}`);
             }
-        }
-
-        function handleTickerUpdate(data) {
-            const symbol = data.topic.replace('tickers.', '');
-            const ticker = data.data;
             
-            state.prices[symbol] = {
+            const ticker = data.result.list[0];
+            return {
+                symbol: symbol,
                 price: parseFloat(ticker.lastPrice),
                 change24h: parseFloat(ticker.price24hPcnt) * 100,
                 high24h: parseFloat(ticker.highPrice24h),
@@ -795,80 +541,178 @@
                 ask: parseFloat(ticker.ask1Price),
                 timestamp: Date.now()
             };
-            
-            // Update UI if it's the current crypto
-            if (symbol === state.currentCrypto) {
-                updateLivePriceUI();
-            }
-            
-            // Update tab prices
-            updateTabPrices();
         }
 
-        function handleKlineUpdate(data) {
-            if (data.data && data.data.length > 0) {
-                const kline = data.data[0];
-                const symbol = data.topic.split('.')[2];
-                
-                if (!state.klines[symbol]) {
-                    state.klines[symbol] = [];
-                }
-                
-                const newKline = {
-                    timestamp: parseInt(kline.start),
-                    open: parseFloat(kline.open),
-                    high: parseFloat(kline.high),
-                    low: parseFloat(kline.low),
-                    close: parseFloat(kline.close),
-                    volume: parseFloat(kline.volume),
-                    confirm: kline.confirm
-                };
-                
-                // Update or add kline
-                const existingIndex = state.klines[symbol].findIndex(k => k.timestamp === newKline.timestamp);
-                if (existingIndex >= 0) {
-                    state.klines[symbol][existingIndex] = newKline;
-                } else {
-                    state.klines[symbol].push(newKline);
-                    // Keep only last 200 klines
-                    if (state.klines[symbol].length > 200) {
-                        state.klines[symbol].shift();
-                    }
-                }
-                
-                // If kline is confirmed, recalculate indicators
-                if (kline.confirm && symbol === state.currentCrypto) {
-                    calculateAllParameters(symbol);
-                    updateCharts();
-                }
+        async function fetchBybitKlines(symbol, interval = '60', limit = 100) {
+            const response = await fetch(
+                `${CONFIG.bybitRestUrl}/v5/market/kline?category=linear&symbol=${symbol}&interval=${interval}&limit=${limit}`
+            );
+            const data = await response.json();
+            
+            if (data.retCode !== 0) {
+                throw new Error(`Failed to fetch klines for ${symbol}`);
             }
+            
+            return data.result.list.reverse().map(k => ({
+                timestamp: parseInt(k[0]),
+                open: parseFloat(k[1]),
+                high: parseFloat(k[2]),
+                low: parseFloat(k[3]),
+                close: parseFloat(k[4]),
+                volume: parseFloat(k[5])
+            }));
         }
 
-        function updateWSStatus(status) {
-            const wsStatusEl = document.getElementById('wsStatus');
-            if (!wsStatusEl) return;
+        async function fetchBybitOrderbook(symbol) {
+            const response = await fetch(
+                `${CONFIG.bybitRestUrl}/v5/market/orderbook?category=linear&symbol=${symbol}&limit=25`
+            );
+            const data = await response.json();
             
-            wsStatusEl.className = `connection-status ${status}`;
+            if (data.retCode !== 0) {
+                return { imbalance: 0 };
+            }
             
-            const statusText = {
-                connected: '<div class="w-2 h-2 rounded-full bg-green-400"></div><span>Connected</span>',
-                disconnected: '<div class="w-2 h-2 rounded-full bg-red-400"></div><span>Disconnected</span>',
-                connecting: '<div class="w-2 h-2 rounded-full bg-orange-400 animate-pulse"></div><span>Connecting...</span>'
+            const bids = data.result.b.reduce((sum, b) => sum + parseFloat(b[1]), 0);
+            const asks = data.result.a.reduce((sum, a) => sum + parseFloat(a[1]), 0);
+            
+            return {
+                bidTotal: bids,
+                askTotal: asks,
+                imbalance: bids + asks > 0 ? (bids - asks) / (bids + asks) : 0
             };
+        }
+
+        async function fetchBybitOpenInterest(symbol) {
+            const response = await fetch(
+                `${CONFIG.bybitRestUrl}/v5/market/open-interest?category=linear&symbol=${symbol}&intervalTime=1h&limit=1`
+            );
+            const data = await response.json();
             
-            wsStatusEl.innerHTML = statusText[status] || statusText.connecting;
+            if (data.retCode !== 0 || !data.result.list.length) {
+                return 0;
+            }
+            
+            return parseFloat(data.result.list[0].openInterest);
+        }
+
+        async function fetchFearGreedIndex() {
+            try {
+                const response = await fetch('https://api.alternative.me/fng/?limit=1');
+                const data = await response.json();
+                
+                if (data?.data?.length) {
+                    return {
+                        value: parseInt(data.data[0].value),
+                        classification: data.data[0].value_classification
+                    };
+                }
+            } catch (e) {
+                console.warn('Fear & Greed fetch failed:', e);
+            }
+            return { value: 50, classification: 'Neutral' };
         }
 
         // ==========================================
-        // TECHNICAL INDICATORS CALCULATION
+        // WEBSOCKET - REAL-TIME PRICES ONLY
+        // ==========================================
+
+        function initWebSocket() {
+            if (state.ws) {
+                state.ws.close();
+            }
+            
+            updateWSStatus('connecting');
+            state.ws = new WebSocket(CONFIG.bybitWsUrl);
+            
+            state.ws.onopen = () => {
+                console.log('✅ WebSocket connected to Bybit');
+                state.wsConnected = true;
+                state.wsReconnectAttempts = 0;
+                updateWSStatus('connected');
+                
+                // Subscribe to all tickers
+                const args = CONFIG.cryptos.map(c => `tickers.${c.id}`);
+                state.ws.send(JSON.stringify({ op: 'subscribe', args }));
+            };
+            
+            state.ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.topic?.startsWith('tickers.')) {
+                        handleTickerUpdate(data);
+                    }
+                } catch (e) {
+                    console.error('WS parse error:', e);
+                }
+            };
+            
+            state.ws.onclose = () => {
+                console.log('❌ WebSocket disconnected');
+                state.wsConnected = false;
+                updateWSStatus('disconnected');
+                
+                // Reconnect with exponential backoff
+                const delay = Math.min(30000, 1000 * Math.pow(2, state.wsReconnectAttempts));
+                state.wsReconnectAttempts++;
+                console.log(`Reconnecting in ${delay}ms...`);
+                setTimeout(initWebSocket, delay);
+            };
+            
+            state.ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function handleTickerUpdate(data) {
+            const symbol = data.topic.replace('tickers.', '');
+            const ticker = data.data;
+            
+            // Update live price
+            state.livePrices[symbol] = {
+                price: parseFloat(ticker.lastPrice),
+                change24h: parseFloat(ticker.price24hPcnt) * 100,
+                high24h: parseFloat(ticker.highPrice24h),
+                low24h: parseFloat(ticker.lowPrice24h),
+                volume24h: parseFloat(ticker.turnover24h),
+                fundingRate: parseFloat(ticker.fundingRate) * 100,
+                timestamp: Date.now()
+            };
+            
+            // Update UI
+            if (symbol === state.currentCrypto) {
+                updateLivePriceUI();
+            }
+            updateTabPrices();
+            
+            // Check if any predictions expired
+            checkExpiredPredictions();
+        }
+
+        function updateWSStatus(status) {
+            const el = document.getElementById('wsStatus');
+            if (!el) return;
+            
+            const configs = {
+                connected: { class: 'connected', html: '<div class="w-2 h-2 rounded-full bg-green-400"></div><span>Live</span>' },
+                disconnected: { class: 'disconnected', html: '<div class="w-2 h-2 rounded-full bg-red-400"></div><span>Offline</span>' },
+                connecting: { class: 'connecting', html: '<div class="w-2 h-2 rounded-full bg-orange-400 animate-pulse"></div><span>Connecting...</span>' }
+            };
+            
+            const cfg = configs[status] || configs.connecting;
+            el.className = `connection-status ${cfg.class}`;
+            el.innerHTML = cfg.html;
+        }
+
+        // ==========================================
+        // TECHNICAL INDICATORS
         // ==========================================
 
         function calculateRSI(prices, period = 14) {
             if (prices.length < period + 1) return 50;
             
-            let gains = 0;
-            let losses = 0;
-            
+            let gains = 0, losses = 0;
             for (let i = prices.length - period; i < prices.length; i++) {
                 const change = prices[i] - prices[i - 1];
                 if (change > 0) gains += change;
@@ -877,51 +721,43 @@
             
             const avgGain = gains / period;
             const avgLoss = losses / period;
-            
             if (avgLoss === 0) return 100;
-            const rs = avgGain / avgLoss;
-            return 100 - (100 / (1 + rs));
+            
+            return 100 - (100 / (1 + avgGain / avgLoss));
         }
 
         function calculateMACD(prices) {
-            if (prices.length < 26) return { macd: 0, signal: 0, histogram: 0 };
+            if (prices.length < 26) return { value: 0, signal: 0, histogram: 0 };
             
-            const ema12 = calculateEMA(prices, 12);
-            const ema26 = calculateEMA(prices, 26);
+            const ema = (data, period) => {
+                const k = 2 / (period + 1);
+                let ema = data.slice(0, period).reduce((a, b) => a + b, 0) / period;
+                for (let i = period; i < data.length; i++) {
+                    ema = data[i] * k + ema * (1 - k);
+                }
+                return ema;
+            };
+            
+            const ema12 = ema(prices, 12);
+            const ema26 = ema(prices, 26);
             const macd = ema12 - ema26;
             
-            // Simplified signal line (would need historical MACD values for accurate calculation)
-            const signal = macd * 0.9;
-            const histogram = macd - signal;
-            
-            return { macd, signal, histogram };
-        }
-
-        function calculateEMA(prices, period) {
-            if (prices.length < period) return prices[prices.length - 1] || 0;
-            
-            const k = 2 / (period + 1);
-            let ema = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
-            
-            for (let i = period; i < prices.length; i++) {
-                ema = prices[i] * k + ema * (1 - k);
-            }
-            return ema;
+            return { value: macd, signal: macd * 0.9, histogram: macd * 0.1 };
         }
 
         function calculateBollingerBands(prices, period = 20) {
-            if (prices.length < period) return { upper: 0, middle: 0, lower: 0, percentB: 0.5 };
+            if (prices.length < period) return { percentB: 0.5 };
             
-            const recentPrices = prices.slice(-period);
-            const sma = recentPrices.reduce((a, b) => a + b, 0) / period;
-            const std = Math.sqrt(recentPrices.reduce((sum, p) => sum + Math.pow(p - sma, 2), 0) / period);
+            const recent = prices.slice(-period);
+            const sma = recent.reduce((a, b) => a + b, 0) / period;
+            const std = Math.sqrt(recent.reduce((sum, p) => sum + Math.pow(p - sma, 2), 0) / period);
             
             const upper = sma + 2 * std;
             const lower = sma - 2 * std;
-            const currentPrice = prices[prices.length - 1];
-            const percentB = std > 0 ? (currentPrice - lower) / (upper - lower) : 0.5;
+            const current = prices[prices.length - 1];
+            const percentB = std > 0 ? (current - lower) / (upper - lower) : 0.5;
             
-            return { upper, middle: sma, lower, percentB };
+            return { upper, middle: sma, lower, percentB: Math.max(0, Math.min(1, percentB)) };
         }
 
         function calculateMomentum(prices, period = 10) {
@@ -932,205 +768,225 @@
         }
 
         function calculateVolumeProfile(klines) {
-            if (klines.length < 20) return 0;
-            
-            const recentKlines = klines.slice(-20);
-            const avgVolume = recentKlines.reduce((sum, k) => sum + k.volume, 0) / 20;
-            const lastVolume = recentKlines[recentKlines.length - 1].volume;
-            
-            // Positive if volume is above average (bullish), negative if below
-            return (lastVolume - avgVolume) / avgVolume;
-        }
-
-        function calculatePriceAction(klines) {
-            if (klines.length < 5) return 0;
-            
-            const recent = klines.slice(-5);
-            let bullishCandles = 0;
-            let bearishCandles = 0;
-            
-            recent.forEach(k => {
-                if (k.close > k.open) bullishCandles++;
-                else if (k.close < k.open) bearishCandles++;
-            });
-            
-            return (bullishCandles - bearishCandles) / 5;
+            if (klines.length < 10) return 0;
+            const recent = klines.slice(-10);
+            const avgVol = recent.slice(0, -1).reduce((sum, k) => sum + k.volume, 0) / 9;
+            const lastVol = recent[recent.length - 1].volume;
+            return avgVol > 0 ? (lastVol - avgVol) / avgVol : 0;
         }
 
         async function calculateAllParameters(symbol) {
-            const priceData = state.prices[symbol];
-            const klines = state.klines[symbol] || [];
+            const klines = state.klines[symbol];
+            if (!klines || klines.length < 30) return null;
+            
             const prices = klines.map(k => k.close);
+            const liveData = state.livePrices[symbol];
             
-            if (prices.length < 26) {
-                console.log('Not enough data for calculations');
-                return;
-            }
-            
-            // Calculate all indicators
+            // Technical indicators
             const rsi = calculateRSI(prices);
             const macd = calculateMACD(prices);
             const bb = calculateBollingerBands(prices);
             const momentum = calculateMomentum(prices);
             const volumeProfile = calculateVolumeProfile(klines);
-            const priceAction = calculatePriceAction(klines);
             
-            // Fetch additional data
+            // Market data
             const orderbook = await fetchBybitOrderbook(symbol);
-            const oi = await fetchBybitOpenInterest(symbol);
+            const openInterest = await fetchBybitOpenInterest(symbol);
             
-            state.openInterest[symbol] = oi.openInterest;
-            state.orderbooks[symbol] = orderbook;
-            
-            // Normalize all parameters to -1 to 1 range
+            // Normalize to -1 to 1
             const params = {
-                rsi: (rsi - 50) / 50, // RSI: <30 bullish, >70 bearish
-                macd: Math.max(-1, Math.min(1, macd.histogram / (priceData?.price || 1) * 1000)),
-                bollingerBands: (bb.percentB - 0.5) * 2, // %B: <0.2 bullish, >0.8 bearish
-                fundingRate: priceData?.fundingRate ? -Math.max(-1, Math.min(1, priceData.fundingRate * 10)) : 0, // Negative funding = bullish
-                openInterest: 0.5, // Would need historical OI to calculate change
-                volumeProfile: Math.max(-1, Math.min(1, volumeProfile)),
-                priceAction: priceAction,
-                orderbook: orderbook.imbalance || 0,
-                fearGreed: (state.fearGreed.value - 50) / 50,
-                momentum: Math.max(-1, Math.min(1, momentum / 10))
+                rsi: (50 - rsi) / 50, // Inverted: low RSI = bullish
+                macd: Math.max(-1, Math.min(1, macd.histogram / (liveData?.price || 1) * 1000)),
+                bollinger: (0.5 - bb.percentB) * 2, // Inverted: low %B = bullish
+                momentum: Math.max(-1, Math.min(1, momentum / 5)),
+                volume: Math.max(-1, Math.min(1, volumeProfile)),
+                orderbook: orderbook.imbalance,
+                funding: liveData?.fundingRate ? -Math.max(-1, Math.min(1, liveData.fundingRate * 10)) : 0,
+                fearGreed: (50 - state.fearGreed.value) / 50
             };
             
             state.parameters[symbol] = params;
+            state.openInterest = openInterest * (liveData?.price || 0);
             
-            // Update UI
-            if (symbol === state.currentCrypto) {
-                renderParameterHeatmap(params);
-                updateCPSGauge(params);
-            }
+            return params;
         }
 
         // ==========================================
-        // COMPOSITE PREDICTIVE SCORE (CPS)
+        // COMPOSITE PREDICTIVE SCORE
         // ==========================================
 
         function calculateCPS(params) {
             if (!params) return 0;
             
-            const w = state.weights;
+            const weights = {
+                rsi: 0.15,
+                macd: 0.12,
+                bollinger: 0.10,
+                momentum: 0.13,
+                volume: 0.10,
+                orderbook: 0.12,
+                funding: 0.15,
+                fearGreed: 0.13
+            };
             
-            const cps = (
-                w.rsi * params.rsi +
-                w.macd * params.macd +
-                w.bollingerBands * (-params.bollingerBands) + // Invert: low %B = buy signal
-                w.fundingRate * params.fundingRate +
-                w.openInterest * params.openInterest +
-                w.volumeProfile * params.volumeProfile +
-                w.priceAction * params.priceAction +
-                w.orderbook * params.orderbook +
-                w.fearGreed * (-params.fearGreed) + // Invert: extreme fear = buy signal
-                w.momentum * params.momentum
-            );
+            let cps = 0;
+            for (const [key, weight] of Object.entries(weights)) {
+                cps += (params[key] || 0) * weight;
+            }
             
             return Math.max(-1, Math.min(1, cps));
         }
 
         function getCPSLabel(cps) {
-            if (cps >= 0.6) return { label: 'STRONG BUY', color: '#00ff88', direction: 'LONG' };
-            if (cps >= 0.2) return { label: 'BUY', color: '#00dd66', direction: 'LONG' };
-            if (cps >= -0.2) return { label: 'NEUTRAL', color: '#9945ff', direction: 'HOLD' };
-            if (cps >= -0.6) return { label: 'SELL', color: '#ff6644', direction: 'SHORT' };
+            if (cps >= 0.5) return { label: 'STRONG BUY', color: '#00ff88', direction: 'LONG' };
+            if (cps >= 0.15) return { label: 'BUY', color: '#00dd66', direction: 'LONG' };
+            if (cps >= -0.15) return { label: 'NEUTRAL', color: '#9945ff', direction: 'HOLD' };
+            if (cps >= -0.5) return { label: 'SELL', color: '#ff6644', direction: 'SHORT' };
             return { label: 'STRONG SELL', color: '#ff3366', direction: 'SHORT' };
         }
 
-        function updateCPSGauge(params) {
+        // ==========================================
+        // PREDICTION ENGINE - LOCKED PREDICTIONS
+        // ==========================================
+
+        function createPrediction(symbol, interval, params) {
+            const liveData = state.livePrices[symbol];
+            if (!liveData) return null;
+            
             const cps = calculateCPS(params);
             const cpsInfo = getCPSLabel(cps);
             
-            const angle = -90 + (cps + 1) * 90;
-            document.getElementById('gaugeNeedle').style.transform = `rotate(${angle}deg)`;
+            if (cpsInfo.direction === 'HOLD') {
+                // Для NEUTRAL используем слабый LONG
+                cpsInfo.direction = 'LONG';
+            }
             
-            const cpsValueEl = document.getElementById('cpsValue');
-            const cpsLabelEl = document.getElementById('cpsLabel');
-            
-            cpsValueEl.textContent = (cps * 100).toFixed(0);
-            cpsValueEl.style.color = cpsInfo.color;
-            cpsLabelEl.textContent = cpsInfo.label;
-            cpsLabelEl.style.color = cpsInfo.color;
-        }
-
-        // ==========================================
-        // PREDICTION ENGINE
-        // ==========================================
-
-        function generatePrediction(currentPrice, cps, interval) {
-            const volatilityFactor = 0.015;
+            // Calculate predicted price
+            const volatilityBase = 0.01; // 1% base volatility
             const timeMultiplier = Math.sqrt(interval.seconds / 60);
-            
-            const direction = cps > 0 ? 1 : -1;
             const magnitude = Math.abs(cps);
+            const direction = cpsInfo.direction === 'LONG' ? 1 : -1;
             
-            const expectedMove = currentPrice * volatilityFactor * timeMultiplier * magnitude * direction;
-            const predictedPrice = currentPrice + expectedMove;
+            const expectedMove = liveData.price * volatilityBase * timeMultiplier * magnitude * direction;
+            const predictedPrice = liveData.price + expectedMove;
             
-            const confidence = Math.max(50, 100 - (timeMultiplier * 5) - (1 - magnitude) * 20);
-            const spread = currentPrice * volatilityFactor * timeMultiplier * 2;
-            
-            const expectedPLPercent = ((predictedPrice - currentPrice) / currentPrice) * 100 * state.leverage;
-            const expectedPLDollar = (CONFIG.baseInvestment * expectedPLPercent) / 100;
-            
-            return {
-                targetPrice: predictedPrice,
-                direction: direction > 0 ? 'LONG' : 'SHORT',
-                confidence: confidence,
-                upperBound: predictedPrice + spread,
-                lowerBound: predictedPrice - spread,
-                expectedPLPercent: expectedPLPercent,
-                expectedPLDollar: expectedPLDollar,
-                timestamp: Date.now(),
+            const prediction = {
+                id: `${symbol}-${interval.key}-${Date.now()}`,
+                symbol: symbol,
                 interval: interval.key,
-                expiresAt: Date.now() + (interval.seconds * 1000)
-            };
-        }
-
-        function executePrediction(prediction, params) {
-            const trade = {
-                id: Date.now(),
-                crypto: state.currentCrypto,
-                entryPrice: state.prices[state.currentCrypto]?.price || 0,
-                targetPrice: prediction.targetPrice,
-                direction: prediction.direction,
-                interval: prediction.interval,
-                leverage: state.leverage,
-                investment: CONFIG.baseInvestment,
-                confidence: prediction.confidence,
+                intervalLabel: interval.label,
+                
+                // Entry data (LOCKED)
+                entryPrice: liveData.price,
+                entryTime: Date.now(),
+                
+                // Prediction (LOCKED)
+                predictedPrice: predictedPrice,
+                direction: cpsInfo.direction,
+                cps: cps,
+                confidence: Math.round((0.5 + magnitude * 0.4) * 100),
+                
+                // Parameters snapshot
                 parameters: { ...params },
-                cps: calculateCPS(params),
-                timestamp: Date.now(),
-                expiresAt: prediction.expiresAt,
+                
+                // Timing
+                expiresAt: Date.now() + (interval.seconds * 1000),
+                
+                // Status
                 status: 'ACTIVE',
+                
+                // Results (filled on expiry)
+                exitPrice: null,
+                exitTime: null,
                 actualPL: null,
-                exitPrice: null
+                accuracy: null
             };
-
-            if (!state.predictions[state.currentCrypto]) {
-                state.predictions[state.currentCrypto] = {};
-            }
-            state.predictions[state.currentCrypto][prediction.interval] = trade;
-
-            return trade;
+            
+            return prediction;
         }
 
-        function evaluateTrade(trade) {
-            const currentPrice = state.prices[trade.crypto]?.price || trade.entryPrice;
-            const priceChange = (currentPrice - trade.entryPrice) / trade.entryPrice;
+        function generatePredictions(symbol) {
+            const params = state.parameters[symbol];
+            if (!params) return;
             
-            let pl;
-            if (trade.direction === 'LONG') {
-                pl = priceChange * trade.investment * trade.leverage;
-            } else {
-                pl = -priceChange * trade.investment * trade.leverage;
+            if (!state.predictions[symbol]) {
+                state.predictions[symbol] = {};
             }
+            
+            CONFIG.intervals.forEach(interval => {
+                const existing = state.predictions[symbol][interval.key];
+                
+                // Only create new prediction if none exists or previous expired
+                if (!existing || existing.status !== 'ACTIVE') {
+                    const prediction = createPrediction(symbol, interval, params);
+                    if (prediction) {
+                        state.predictions[symbol][interval.key] = prediction;
+                        console.log(`📊 New ${interval.label} prediction for ${symbol}: ${prediction.direction} @ ${prediction.predictedPrice.toFixed(2)}`);
+                    }
+                }
+            });
+        }
 
-            trade.exitPrice = currentPrice;
-            trade.actualPL = pl;
-            trade.status = pl > 0 ? 'WON' : 'LOST';
+        // ==========================================
+        // PREDICTION EVALUATION
+        // ==========================================
 
+        function checkExpiredPredictions() {
+            const now = Date.now();
+            
+            Object.keys(state.predictions).forEach(symbol => {
+                Object.keys(state.predictions[symbol]).forEach(intervalKey => {
+                    const pred = state.predictions[symbol][intervalKey];
+                    
+                    if (pred.status === 'ACTIVE' && now >= pred.expiresAt) {
+                        evaluatePrediction(pred);
+                    }
+                });
+            });
+        }
+
+        function evaluatePrediction(prediction) {
+            const liveData = state.livePrices[prediction.symbol];
+            if (!liveData) return;
+            
+            const exitPrice = liveData.price;
+            const entryPrice = prediction.entryPrice;
+            const predictedPrice = prediction.predictedPrice;
+            
+            // Calculate actual price change
+            const actualChange = (exitPrice - entryPrice) / entryPrice;
+            
+            // Calculate P/L based on direction
+            let pl;
+            if (prediction.direction === 'LONG') {
+                pl = actualChange * CONFIG.investment;
+            } else { // SHORT
+                pl = -actualChange * CONFIG.investment;
+            }
+            
+            // Calculate prediction accuracy
+            const predictedChange = (predictedPrice - entryPrice) / entryPrice;
+            const actualDirection = actualChange > 0 ? 'LONG' : 'SHORT';
+            const directionCorrect = prediction.direction === actualDirection;
+            
+            // Accuracy: how close was prediction to actual
+            const priceAccuracy = Math.max(0, 100 - Math.abs((exitPrice - predictedPrice) / entryPrice * 100) * 10);
+            const accuracy = directionCorrect ? Math.min(100, priceAccuracy + 20) : Math.max(0, priceAccuracy - 30);
+            
+            // Update prediction
+            prediction.exitPrice = exitPrice;
+            prediction.exitTime = Date.now();
+            prediction.actualPL = pl;
+            prediction.accuracy = accuracy;
+            prediction.status = pl > 0 ? 'WON' : 'LOST';
+            
+            // Add to trade history
+            state.tradeHistory.unshift({ ...prediction });
+            if (state.tradeHistory.length > 100) {
+                state.tradeHistory.pop();
+            }
+            
+            // Update stats
             state.stats.totalTrades++;
             if (pl > 0) {
                 state.stats.winningTrades++;
@@ -1138,81 +994,29 @@
                 state.stats.losingTrades++;
             }
             state.stats.totalPL += pl;
-
-            state.tradeHistory.unshift(trade);
-            if (state.tradeHistory.length > 100) {
-                state.tradeHistory.pop();
-            }
-
-            // Recalibrate weights if deviation is large
-            const deviation = Math.abs((currentPrice - trade.targetPrice) / trade.targetPrice);
-            if (deviation > CONFIG.deviationThreshold) {
-                optimizeWeights();
-            }
-
-            calculateOptimalLeverage();
-            return trade;
-        }
-
-        function optimizeWeights() {
-            const recentTrades = state.tradeHistory.slice(-30);
-            if (recentTrades.length < 5) return;
-
-            const paramNames = Object.keys(state.weights);
-            const paramAccuracy = {};
-
-            paramNames.forEach(param => {
-                let correct = 0;
-                let total = 0;
-                
-                recentTrades.forEach(trade => {
-                    if (trade.parameters && trade.parameters[param] !== undefined) {
-                        const paramDirection = trade.parameters[param] > 0 ? 1 : -1;
-                        let tradeSuccess = trade.actualPL > 0 ? 1 : -1;
-                        if (trade.direction === 'SHORT') tradeSuccess *= -1;
-                        
-                        if (paramDirection === tradeSuccess) correct++;
-                        total++;
+            state.stats.totalAccuracy = state.tradeHistory.reduce((sum, t) => sum + (t.accuracy || 0), 0) / state.tradeHistory.length;
+            
+            console.log(`✅ Trade completed: ${prediction.symbol} ${prediction.direction} | P/L: $${pl.toFixed(2)} | Accuracy: ${accuracy.toFixed(1)}%`);
+            
+            // Update UI
+            updateTradeHistoryUI();
+            updateStatsUI();
+            
+            // Create new prediction for this interval
+            const interval = CONFIG.intervals.find(i => i.key === prediction.interval);
+            if (interval) {
+                const params = state.parameters[prediction.symbol];
+                if (params) {
+                    const newPred = createPrediction(prediction.symbol, interval, params);
+                    if (newPred) {
+                        state.predictions[prediction.symbol][prediction.interval] = newPred;
                     }
-                });
-                
-                paramAccuracy[param] = total > 0 ? correct / total : 0.5;
-            });
-
-            const totalAccuracy = Object.values(paramAccuracy).reduce((a, b) => a + b, 0);
-            if (totalAccuracy === 0) return;
-
-            paramNames.forEach(param => {
-                const newWeight = (paramAccuracy[param] / totalAccuracy) * 0.3 + state.weights[param] * 0.7;
-                state.weights[param] = Math.max(0.05, Math.min(0.25, newWeight));
-            });
-
-            // Normalize
-            const weightSum = Object.values(state.weights).reduce((a, b) => a + b, 0);
-            paramNames.forEach(param => {
-                state.weights[param] /= weightSum;
-            });
-            
-            console.log('Weights optimized:', state.weights);
-        }
-
-        function calculateOptimalLeverage() {
-            const recentTrades = state.tradeHistory.slice(-20);
-            if (recentTrades.length < 5) return 1;
-
-            const winRate = recentTrades.filter(t => t.actualPL > 0).length / recentTrades.length;
-            
-            if (winRate > 0.7 && state.leverage < CONFIG.maxLeverage) {
-                state.leverage = Math.min(CONFIG.maxLeverage, state.leverage + 0.5);
-            } else if (winRate < 0.4) {
-                state.leverage = Math.max(1, state.leverage - 0.5);
+                }
             }
-
-            return state.leverage;
         }
 
         // ==========================================
-        // UI RENDERING FUNCTIONS
+        // UI RENDERING
         // ==========================================
 
         function renderCryptoTabs() {
@@ -1228,8 +1032,8 @@
                         <div class="text-xs text-gray-500">${crypto.name}</div>
                     </div>
                     <div class="ml-auto text-right">
-                        <div id="tab-price-${crypto.id}" class="font-mono text-sm">$--</div>
-                        <div id="tab-change-${crypto.id}" class="text-xs">--%</div>
+                        <div id="tab-price-${crypto.id}" class="font-mono text-sm">Loading...</div>
+                        <div id="tab-change-${crypto.id}" class="text-xs text-gray-400">--%</div>
                     </div>
                 </div>
             `).join('');
@@ -1237,46 +1041,62 @@
 
         function renderPredictionCards() {
             const container = document.getElementById('predictionCards');
-            container.innerHTML = CONFIG.intervals.map((interval, idx) => `
-                <div class="prediction-card glass-panel p-4 cursor-pointer ${idx === state.currentInterval ? 'neon-glow-purple' : ''}"
-                     onclick="selectInterval(${idx})">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="title-font text-xs text-gray-400">${interval.label}</span>
-                        ${state.leverage > 1 ? `<span class="leverage-badge">${state.leverage}x</span>` : ''}
+            const symbol = state.currentCrypto;
+            const predictions = state.predictions[symbol] || {};
+            
+            container.innerHTML = CONFIG.intervals.map((interval, idx) => {
+                const pred = predictions[interval.key];
+                const isActive = pred && pred.status === 'ACTIVE';
+                const timeLeft = pred ? Math.max(0, pred.expiresAt - Date.now()) : 0;
+                const progress = pred ? ((Date.now() - pred.entryTime) / (pred.expiresAt - pred.entryTime)) * 100 : 0;
+                
+                return `
+                    <div class="prediction-card glass-panel p-4 cursor-pointer ${idx === state.currentInterval ? 'neon-glow-purple' : ''} ${isActive ? 'locked' : ''}"
+                         onclick="selectInterval(${idx})">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="title-font text-xs text-gray-400">${interval.label}</span>
+                            ${isActive ? '<span class="lock-icon">🔒</span>' : ''}
+                        </div>
+                        <div class="title-font text-lg font-bold text-white">
+                            ${pred ? formatPrice(pred.predictedPrice) : '$--'}
+                        </div>
+                        <div class="text-xs mb-2 ${pred?.direction === 'LONG' ? 'text-green-400' : pred?.direction === 'SHORT' ? 'text-red-400' : 'text-gray-400'}">
+                            ${pred ? `${pred.direction} (${pred.confidence}%)` : '--'}
+                        </div>
+                        <div class="text-xs text-gray-500 mb-2">
+                            ${isActive ? `Expires: ${formatTimeLeft(timeLeft)}` : 'Waiting...'}
+                        </div>
+                        <div class="h-1 bg-gray-800 rounded-full overflow-hidden">
+                            <div class="h-full ${isActive ? 'bg-purple-500' : 'bg-gray-600'} transition-all" 
+                                 style="width: ${Math.min(100, progress)}%"></div>
+                        </div>
                     </div>
-                    <div id="pred-target-${interval.key}" class="title-font text-lg font-bold text-white">$--</div>
-                    <div id="pred-direction-${interval.key}" class="text-xs text-gray-400 mb-2">--</div>
-                    <div id="pred-pl-${interval.key}" class="title-font text-sm">$--</div>
-                    <div class="mt-2 h-1 bg-gray-800 rounded-full overflow-hidden">
-                        <div id="pred-progress-${interval.key}" class="h-full bg-purple-500 transition-all" style="width: 0%"></div>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function renderParameterHeatmap(params) {
-            const paramNames = {
+            if (!params) return;
+            
+            const paramInfo = {
                 rsi: { name: 'RSI', icon: '📊' },
                 macd: { name: 'MACD', icon: '📈' },
-                bollingerBands: { name: 'BB %B', icon: '📉' },
-                fundingRate: { name: 'FUNDING', icon: '💰' },
-                openInterest: { name: 'OI', icon: '🎯' },
-                volumeProfile: { name: 'VOLUME', icon: '📊' },
-                priceAction: { name: 'PRICE', icon: '💹' },
-                orderbook: { name: 'ORDERS', icon: '📕' },
-                fearGreed: { name: 'F&G', icon: '😱' },
-                momentum: { name: 'MOM', icon: '🚀' }
+                bollinger: { name: 'Bollinger', icon: '📉' },
+                momentum: { name: 'Momentum', icon: '🚀' },
+                volume: { name: 'Volume', icon: '📊' },
+                orderbook: { name: 'Orders', icon: '📕' },
+                funding: { name: 'Funding', icon: '💰' },
+                fearGreed: { name: 'F&G', icon: '😱' }
             };
 
             const container = document.getElementById('paramHeatmap');
             container.innerHTML = Object.entries(params).map(([key, value]) => {
-                const info = paramNames[key] || { name: key, icon: '❓' };
-                const intensity = Math.abs(value);
+                const info = paramInfo[key] || { name: key, icon: '❓' };
                 const isPositive = value > 0;
                 const colorClass = isPositive ? 'bullish' : value < 0 ? 'bearish' : 'neutral';
                 
                 return `
-                    <div class="param-block glass-panel p-3 ${colorClass}" style="opacity: ${0.5 + intensity * 0.5}">
+                    <div class="param-block glass-panel p-3 ${colorClass}">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-lg">${info.icon}</span>
                             <span class="text-xs font-mono ${isPositive ? 'text-green-400' : 'text-red-400'}">
@@ -1284,86 +1104,120 @@
                             </span>
                         </div>
                         <div class="text-xs text-gray-400">${info.name}</div>
-                        <div class="text-xs text-gray-600">w: ${(state.weights[key] * 100).toFixed(1)}%</div>
                     </div>
                 `;
             }).join('');
         }
 
         function updateLivePriceUI() {
-            const priceData = state.prices[state.currentCrypto];
-            if (!priceData) return;
+            const data = state.livePrices[state.currentCrypto];
+            if (!data) return;
             
-            document.getElementById('livePrice').textContent = formatPrice(priceData.price);
+            document.getElementById('livePrice').textContent = formatPrice(data.price);
             
             const changeEl = document.getElementById('priceChange');
-            changeEl.textContent = `${priceData.change24h >= 0 ? '+' : ''}${priceData.change24h.toFixed(2)}%`;
-            changeEl.className = `text-lg ${priceData.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`;
+            changeEl.textContent = `${data.change24h >= 0 ? '+' : ''}${data.change24h.toFixed(2)}%`;
+            changeEl.className = `text-lg ${data.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`;
             
-            document.getElementById('high24h').textContent = formatPrice(priceData.high24h);
-            document.getElementById('low24h').textContent = formatPrice(priceData.low24h);
-            document.getElementById('volume24h').textContent = formatVolume(priceData.volume24h);
+            document.getElementById('high24h').textContent = formatPrice(data.high24h);
+            document.getElementById('low24h').textContent = formatPrice(data.low24h);
+            document.getElementById('volume24h').textContent = formatVolume(data.volume24h);
             
-            // Funding rate
             const fundingEl = document.getElementById('fundingRate');
-            if (priceData.fundingRate !== undefined) {
-                fundingEl.textContent = `Funding: ${priceData.fundingRate >= 0 ? '+' : ''}${priceData.fundingRate.toFixed(4)}%`;
-                fundingEl.className = `funding-rate ${priceData.fundingRate >= 0 ? 'positive' : 'negative'}`;
+            fundingEl.textContent = `Funding: ${data.fundingRate >= 0 ? '+' : ''}${data.fundingRate.toFixed(4)}%`;
+            fundingEl.className = `funding-rate ${data.fundingRate >= 0 ? 'positive' : 'negative'}`;
+            
+            if (state.openInterest) {
+                document.getElementById('openInterest').textContent = formatVolume(state.openInterest);
             }
             
-            // Open Interest
-            const oi = state.openInterest[state.currentCrypto];
-            if (oi) {
-                document.getElementById('openInterest').textContent = formatVolume(oi * priceData.price);
+            // Update CPS gauge
+            const params = state.parameters[state.currentCrypto];
+            if (params) {
+                const cps = calculateCPS(params);
+                const cpsInfo = getCPSLabel(cps);
+                
+                const angle = -90 + (cps + 1) * 90;
+                document.getElementById('gaugeNeedle').style.transform = `rotate(${angle}deg)`;
+                document.getElementById('cpsValue').textContent = (cps * 100).toFixed(0);
+                document.getElementById('cpsValue').style.color = cpsInfo.color;
+                document.getElementById('cpsLabel').textContent = cpsInfo.label;
+                document.getElementById('cpsLabel').style.color = cpsInfo.color;
             }
+            
+            // Update prediction cards (to show current P/L)
+            updatePredictionCurrentPL();
+        }
+
+        function updatePredictionCurrentPL() {
+            const symbol = state.currentCrypto;
+            const predictions = state.predictions[symbol];
+            const liveData = state.livePrices[symbol];
+            
+            if (!predictions || !liveData) return;
+            
+            // Cards are re-rendered less frequently, but we can update time left here
+            renderPredictionCards();
         }
 
         function updateTabPrices() {
-            CONFIG.cryptos.forEach(c => {
-                const data = state.prices[c.id];
-                if (data) {
-                    const priceEl = document.getElementById(`tab-price-${c.id}`);
-                    const changeEl = document.getElementById(`tab-change-${c.id}`);
-                    
-                    if (priceEl) priceEl.textContent = formatPrice(data.price);
-                    if (changeEl) {
-                        changeEl.textContent = `${data.change24h >= 0 ? '+' : ''}${data.change24h.toFixed(2)}%`;
-                        changeEl.className = `text-xs ${data.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`;
-                    }
+            CONFIG.cryptos.forEach(crypto => {
+                const data = state.livePrices[crypto.id];
+                if (!data) return;
+                
+                const priceEl = document.getElementById(`tab-price-${crypto.id}`);
+                const changeEl = document.getElementById(`tab-change-${crypto.id}`);
+                
+                if (priceEl) priceEl.textContent = formatPrice(data.price);
+                if (changeEl) {
+                    changeEl.textContent = `${data.change24h >= 0 ? '+' : ''}${data.change24h.toFixed(2)}%`;
+                    changeEl.className = `text-xs ${data.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`;
                 }
             });
         }
 
-        function renderTradeHistory() {
+        function updateTradeHistoryUI() {
             const container = document.getElementById('tradeHistory');
-            const trades = state.tradeHistory.slice(0, 10);
+            const trades = state.tradeHistory.slice(0, 20);
             
             if (trades.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-500 py-4">No trades yet</div>';
+                container.innerHTML = '<div class="text-center text-gray-500 py-8">Waiting for first prediction to complete...</div>';
                 return;
             }
 
             container.innerHTML = trades.map(trade => {
+                const crypto = CONFIG.cryptos.find(c => c.id === trade.symbol);
                 const isWin = trade.actualPL > 0;
-                const crypto = CONFIG.cryptos.find(c => c.id === trade.crypto);
+                const accuracyClass = trade.accuracy >= 70 ? 'high' : trade.accuracy >= 40 ? 'medium' : 'low';
                 
                 return `
-                    <div class="flex items-center justify-between py-2 border-b border-white/5">
-                        <div class="flex items-center gap-2">
-                            <div class="w-2 h-2 rounded-full ${isWin ? 'bg-green-400' : 'bg-red-400'}"></div>
-                            <span class="text-sm">${crypto?.symbol || trade.crypto}</span>
-                            <span class="text-xs px-2 py-0.5 rounded ${trade.direction === 'LONG' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">
+                    <div class="trade-row grid grid-cols-12 gap-2 text-xs py-2 border-b border-white/5 items-center">
+                        <div class="col-span-1 text-gray-400">
+                            ${new Date(trade.entryTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </div>
+                        <div class="col-span-1 font-semibold" style="color: ${crypto?.color || '#fff'}">
+                            ${crypto?.symbol || trade.symbol}
+                        </div>
+                        <div class="col-span-1">
+                            <span class="px-2 py-0.5 rounded text-xs ${trade.direction === 'LONG' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">
                                 ${trade.direction}
                             </span>
-                            <span class="text-xs text-gray-500">${trade.interval}</span>
                         </div>
-                        <div class="text-right">
-                            <div class="text-sm ${isWin ? 'text-green-400' : 'text-red-400'}">
-                                ${isWin ? '+' : ''}$${trade.actualPL?.toFixed(2) || '--'}
-                            </div>
-                            <div class="text-xs text-gray-600">
-                                ${new Date(trade.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                            </div>
+                        <div class="col-span-1 text-gray-400">${trade.intervalLabel}</div>
+                        <div class="col-span-2 font-mono">
+                            ${formatPrice(trade.entryPrice)} → ${formatPrice(trade.exitPrice)}
+                        </div>
+                        <div class="col-span-2 font-mono text-gray-400">
+                            ${formatPrice(trade.predictedPrice)} → ${formatPrice(trade.exitPrice)}
+                        </div>
+                        <div class="col-span-1">
+                            <span class="accuracy-badge ${accuracyClass}">${trade.accuracy?.toFixed(0) || 0}%</span>
+                        </div>
+                        <div class="col-span-1 font-mono font-bold ${isWin ? 'text-green-400' : 'text-red-400'}">
+                            ${isWin ? '+' : ''}$${trade.actualPL?.toFixed(2) || '0.00'}
+                        </div>
+                        <div class="col-span-1 status-${trade.status?.toLowerCase() || 'active'}">
+                            ${trade.status || 'ACTIVE'}
                         </div>
                     </div>
                 `;
@@ -1371,99 +1225,75 @@
         }
 
         function updateStatsUI() {
-            document.getElementById('accuracy24h').textContent = `${state.stats.accuracy24h.toFixed(1)}%`;
-            document.getElementById('totalTrades').textContent = state.stats.totalTrades;
-            document.getElementById('winningTrades').textContent = state.stats.winningTrades;
-            document.getElementById('losingTrades').textContent = state.stats.losingTrades;
+            const stats = state.stats;
+            const trades = state.tradeHistory;
+            
+            document.getElementById('totalTrades').textContent = stats.totalTrades;
+            document.getElementById('winningTrades').textContent = stats.winningTrades;
+            document.getElementById('losingTrades').textContent = stats.losingTrades;
+            
+            const winRate = stats.totalTrades > 0 ? (stats.winningTrades / stats.totalTrades * 100) : 0;
+            document.getElementById('accuracy24h').textContent = `${winRate.toFixed(1)}%`;
             
             const totalPLEl = document.getElementById('totalPL');
-            totalPLEl.textContent = `${state.stats.totalPL >= 0 ? '+' : ''}$${state.stats.totalPL.toFixed(2)}`;
-            totalPLEl.className = `title-font ${state.stats.totalPL >= 0 ? 'text-green-400' : 'text-red-400'}`;
-
-            const winningTrades = state.tradeHistory.filter(t => t.actualPL > 0);
-            const losingTrades = state.tradeHistory.filter(t => t.actualPL < 0);
+            totalPLEl.textContent = `${stats.totalPL >= 0 ? '+' : ''}$${stats.totalPL.toFixed(2)}`;
+            totalPLEl.className = `title-font ${stats.totalPL >= 0 ? 'text-green-400' : 'text-red-400'}`;
+            
+            document.getElementById('avgAccuracy').textContent = `${(stats.totalAccuracy || 0).toFixed(1)}%`;
+            
+            // Calculate averages
+            const winningTrades = trades.filter(t => t.actualPL > 0);
+            const losingTrades = trades.filter(t => t.actualPL < 0);
             
             const avgProfit = winningTrades.length > 0 ? 
                 winningTrades.reduce((sum, t) => sum + t.actualPL, 0) / winningTrades.length : 0;
             const avgLoss = losingTrades.length > 0 ? 
                 Math.abs(losingTrades.reduce((sum, t) => sum + t.actualPL, 0)) / losingTrades.length : 0;
-
+            
             document.getElementById('avgProfit').textContent = `+$${avgProfit.toFixed(2)}`;
             document.getElementById('avgLoss').textContent = `-$${avgLoss.toFixed(2)}`;
             
-            const winRate = state.stats.totalTrades > 0 ? 
-                (state.stats.winningTrades / state.stats.totalTrades) * 100 : 0;
-            document.getElementById('winRate').textContent = `${winRate.toFixed(1)}%`;
-            
-            document.getElementById('currentLeverage').textContent = `${state.leverage.toFixed(1)}x`;
-            
-            renderTradeHistory();
-        }
-
-        function updatePredictionCards() {
-            const crypto = state.currentCrypto;
-            const predictions = state.predictions[crypto];
-            const priceData = state.prices[crypto];
-            
-            if (!predictions || !priceData) return;
-            
-            CONFIG.intervals.forEach(interval => {
-                const pred = predictions[interval.key];
-                if (pred) {
-                    const targetEl = document.getElementById(`pred-target-${interval.key}`);
-                    const dirEl = document.getElementById(`pred-direction-${interval.key}`);
-                    const plEl = document.getElementById(`pred-pl-${interval.key}`);
-                    const progressEl = document.getElementById(`pred-progress-${interval.key}`);
-                    
-                    if (targetEl) targetEl.textContent = formatPrice(pred.targetPrice);
-                    
-                    if (dirEl) {
-                        dirEl.textContent = `${pred.direction} (${pred.confidence.toFixed(0)}%)`;
-                        dirEl.className = `text-xs ${pred.direction === 'LONG' ? 'text-green-400' : 'text-red-400'}`;
-                    }
-
-                    if (plEl) {
-                        const currentPL = calculateCurrentPL(pred);
-                        plEl.textContent = `${currentPL >= 0 ? '+' : ''}$${currentPL.toFixed(2)}`;
-                        plEl.className = `title-font text-sm ${currentPL >= 0 ? 'text-green-400' : 'text-red-400'}`;
-                    }
-
-                    if (progressEl) {
-                        const elapsed = Date.now() - pred.timestamp;
-                        const total = pred.expiresAt - pred.timestamp;
-                        const progress = total > 0 ? Math.min(100, (elapsed / total) * 100) : 0;
-                        progressEl.style.width = `${progress}%`;
-                    }
-                }
-            });
-        }
-
-        function calculateCurrentPL(trade) {
-            const currentPrice = state.prices[trade.crypto]?.price || trade.entryPrice;
-            const priceChange = (currentPrice - trade.entryPrice) / trade.entryPrice;
-            
-            if (trade.direction === 'LONG') {
-                return priceChange * trade.investment * trade.leverage;
-            } else {
-                return -priceChange * trade.investment * trade.leverage;
+            // Best and worst trades
+            if (trades.length > 0) {
+                const best = Math.max(...trades.map(t => t.actualPL || 0));
+                const worst = Math.min(...trades.map(t => t.actualPL || 0));
+                
+                document.getElementById('bestTrade').textContent = `+$${Math.max(0, best).toFixed(2)}`;
+                document.getElementById('worstTrade').textContent = `-$${Math.abs(Math.min(0, worst)).toFixed(2)}`;
             }
         }
 
+        function updateFearGreedUI() {
+            const fg = state.fearGreed;
+            document.getElementById('fgValue').textContent = fg.value;
+            document.getElementById('fgLabel').textContent = fg.classification.toUpperCase();
+            
+            const circle = document.getElementById('fgCircle');
+            const offset = 283 - (fg.value / 100) * 283;
+            circle.style.strokeDashoffset = offset;
+            
+            const color = fg.value < 25 ? '#ff3366' : 
+                         fg.value < 45 ? '#ff6644' :
+                         fg.value < 55 ? '#9945ff' :
+                         fg.value < 75 ? '#00dd66' : '#00ff88';
+            circle.style.stroke = color;
+        }
+
         // ==========================================
-        // CHART FUNCTIONS
+        // CHARTS
         // ==========================================
 
         function initCharts() {
-            const priceCtx = document.getElementById('priceChart');
+            const priceCtx = document.getElementById('priceChart')?.getContext('2d');
             if (!priceCtx) return;
             
-            state.charts.price = new Chart(priceCtx.getContext('2d'), {
+            state.charts.price = new Chart(priceCtx, {
                 type: 'line',
                 data: {
                     labels: [],
                     datasets: [
                         {
-                            label: 'Actual Price',
+                            label: 'Price',
                             data: [],
                             borderColor: '#00d4ff',
                             backgroundColor: 'rgba(0, 212, 255, 0.1)',
@@ -1472,79 +1302,30 @@
                             pointRadius: 0
                         },
                         {
-                            label: 'Predicted Price',
+                            label: 'Prediction',
                             data: [],
                             borderColor: '#00ff88',
                             borderDash: [5, 5],
-                            fill: false,
-                            tension: 0.4,
-                            pointRadius: 0
+                            pointRadius: 6,
+                            pointBackgroundColor: '#00ff88',
+                            fill: false
                         }
                     ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            callbacks: {
-                                label: (ctx) => `${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString()}`
-                            }
-                        }
-                    },
+                    plugins: { legend: { display: false } },
                     scales: {
                         x: {
                             grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: 'rgba(255,255,255,0.5)', maxTicksLimit: 10 }
+                            ticks: { color: 'rgba(255,255,255,0.5)', maxTicksLimit: 8 }
                         },
                         y: {
                             grid: { color: 'rgba(255,255,255,0.05)' },
                             ticks: { 
                                 color: 'rgba(255,255,255,0.5)',
-                                callback: (value) => '$' + formatNumber(value)
-                            }
-                        }
-                    }
-                }
-            });
-
-            const perfCtx = document.getElementById('performanceChart');
-            if (!perfCtx) return;
-            
-            state.charts.performance = new Chart(perfCtx.getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'P/L',
-                        data: [],
-                        backgroundColor: [],
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: 'rgba(255,255,255,0.5)' }
-                        },
-                        y: {
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { 
-                                color: 'rgba(255,255,255,0.5)',
-                                callback: (value) => '$' + value.toFixed(0)
+                                callback: v => '$' + formatNumber(v)
                             }
                         }
                     }
@@ -1553,64 +1334,42 @@
         }
 
         function updateCharts() {
-            if (!state.charts.price || !state.charts.performance) return;
-
-            const crypto = state.currentCrypto;
-            const klines = state.klines[crypto] || [];
-            const priceData = state.prices[crypto];
-            const params = state.parameters[crypto];
-
-            if (klines.length > 0) {
-                // Determine how many candles to show based on range
-                const rangeLimits = { '1h': 60, '4h': 48, '1d': 96, '1w': 168 };
-                const limit = rangeLimits[state.currentChartRange] || 96;
-                
-                const displayKlines = klines.slice(-limit);
-                const labels = displayKlines.map(k => {
-                    const date = new Date(k.timestamp);
-                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                });
-                const prices = displayKlines.map(k => k.close);
-                
-                // Generate prediction line
-                const lastPrice = prices[prices.length - 1] || priceData?.price || 0;
-                const cps = params ? calculateCPS(params) : 0;
-                
-                // Add future predictions
-                const futureCount = Math.floor(limit * 0.2);
-                for (let i = 1; i <= futureCount; i++) {
-                    labels.push(`+${i}`);
-                    prices.push(null); // Actual price is null for future
+            if (!state.charts.price) return;
+            
+            const klines = state.klines[state.currentCrypto];
+            const predictions = state.predictions[state.currentCrypto];
+            
+            if (!klines || klines.length === 0) return;
+            
+            const rangeLimits = { '1h': 60, '4h': 48, '1d': 96 };
+            const limit = rangeLimits[state.currentChartRange] || 96;
+            
+            const displayKlines = klines.slice(-limit);
+            const labels = displayKlines.map(k => {
+                const d = new Date(k.timestamp);
+                return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            });
+            const prices = displayKlines.map(k => k.close);
+            
+            // Add prediction points
+            const predictionData = new Array(prices.length).fill(null);
+            
+            if (predictions) {
+                const activePred = predictions[CONFIG.intervals[state.currentInterval].key];
+                if (activePred && activePred.status === 'ACTIVE') {
+                    // Show prediction at the end
+                    predictionData[predictionData.length - 1] = activePred.predictedPrice;
                 }
-                
-                // Predicted prices
-                const predictedPrices = displayKlines.map(k => null);
-                for (let i = 1; i <= futureCount; i++) {
-                    const predPrice = lastPrice * (1 + cps * 0.001 * i);
-                    predictedPrices.push(predPrice);
-                }
-                
-                // Add last actual price to prediction line for continuity
-                predictedPrices[predictedPrices.length - futureCount - 1] = lastPrice;
-
-                state.charts.price.data.labels = labels;
-                state.charts.price.data.datasets[0].data = prices;
-                state.charts.price.data.datasets[1].data = predictedPrices;
-                state.charts.price.update('none');
             }
-
-            // Update performance chart
-            const recentTrades = state.tradeHistory.slice(0, 10).reverse();
-            state.charts.performance.data.labels = recentTrades.map((_, i) => `#${i + 1}`);
-            state.charts.performance.data.datasets[0].data = recentTrades.map(t => t.actualPL || 0);
-            state.charts.performance.data.datasets[0].backgroundColor = recentTrades.map(t => 
-                t.actualPL > 0 ? 'rgba(0, 255, 136, 0.7)' : 'rgba(255, 51, 102, 0.7)'
-            );
-            state.charts.performance.update('none');
+            
+            state.charts.price.data.labels = labels;
+            state.charts.price.data.datasets[0].data = prices;
+            state.charts.price.data.datasets[1].data = predictionData;
+            state.charts.price.update('none');
         }
 
         // ==========================================
-        // COUNTDOWN & ANALYSIS
+        // COUNTDOWN
         // ==========================================
 
         function updateCountdown() {
@@ -1618,7 +1377,7 @@
             
             if (state.countdownSeconds <= 0) {
                 state.countdownSeconds = CONFIG.intervals[state.currentInterval].seconds;
-                triggerAnalysis();
+                triggerNewAnalysis();
             }
 
             const minutes = Math.floor(state.countdownSeconds / 60);
@@ -1631,57 +1390,17 @@
             document.getElementById('countdownRing').style.strokeDashoffset = 283 - progress;
         }
 
-        async function triggerAnalysis() {
-            console.log('Triggering analysis for', state.currentCrypto);
+        async function triggerNewAnalysis() {
+            console.log('🔄 Triggering new analysis...');
             
-            // Evaluate expired predictions
-            const predictions = state.predictions[state.currentCrypto];
-            if (predictions) {
-                Object.keys(predictions).forEach(interval => {
-                    const pred = predictions[interval];
-                    if (pred && pred.status === 'ACTIVE' && Date.now() >= pred.expiresAt) {
-                        evaluateTrade(pred);
-                    }
-                });
-            }
-
-            // Calculate parameters
+            // Recalculate parameters
             await calculateAllParameters(state.currentCrypto);
             
-            // Generate new predictions
-            generateAllPredictions();
+            // Render updated parameters
+            renderParameterHeatmap(state.parameters[state.currentCrypto]);
             
-            // Update UI
-            updatePredictionCards();
-            updateStatsUI();
+            // Update charts
             updateCharts();
-
-            // Calculate 24h accuracy
-            const last24h = state.tradeHistory.filter(t => Date.now() - t.timestamp < 86400000);
-            if (last24h.length > 0) {
-                state.stats.accuracy24h = (last24h.filter(t => t.actualPL > 0).length / last24h.length) * 100;
-            }
-        }
-
-        function generateAllPredictions() {
-            const params = state.parameters[state.currentCrypto];
-            const priceData = state.prices[state.currentCrypto];
-            
-            if (!params || !priceData) return;
-            
-            const cps = calculateCPS(params);
-            
-            if (!state.predictions[state.currentCrypto]) {
-                state.predictions[state.currentCrypto] = {};
-            }
-            
-            CONFIG.intervals.forEach(interval => {
-                const existing = state.predictions[state.currentCrypto][interval.key];
-                if (!existing || existing.status !== 'ACTIVE' || Date.now() >= existing.expiresAt) {
-                    const prediction = generatePrediction(priceData.price, cps, interval);
-                    executePrediction(prediction, params);
-                }
-            });
         }
 
         // ==========================================
@@ -1692,25 +1411,26 @@
             state.currentCrypto = cryptoId;
             renderCryptoTabs();
             
-            // Fetch initial klines if not available
+            // Fetch klines if not available
             if (!state.klines[cryptoId] || state.klines[cryptoId].length === 0) {
-                const interval = CONFIG.intervals[state.currentInterval].bybit;
-                const klines = await fetchBybitKlines(cryptoId, interval);
-                state.klines[cryptoId] = klines;
+                try {
+                    const interval = CONFIG.intervals[state.currentInterval].bybit;
+                    state.klines[cryptoId] = await fetchBybitKlines(cryptoId, interval);
+                } catch (e) {
+                    console.error('Failed to fetch klines:', e);
+                }
             }
-            
-            // Subscribe to new klines via WebSocket
-            subscribeToKlines(cryptoId);
             
             // Calculate parameters
             await calculateAllParameters(cryptoId);
             
-            // Generate predictions
-            generateAllPredictions();
+            // Generate predictions if needed
+            generatePredictions(cryptoId);
             
             // Update UI
             updateLivePriceUI();
-            updatePredictionCards();
+            renderParameterHeatmap(state.parameters[cryptoId]);
+            renderPredictionCards();
             updateCharts();
         }
 
@@ -1718,24 +1438,26 @@
             state.currentInterval = index;
             state.countdownSeconds = CONFIG.intervals[index].seconds;
             document.getElementById('activeInterval').textContent = CONFIG.intervals[index].label + ' INTERVAL';
-            renderPredictionCards();
             
-            // Fetch new klines for this interval
-            const interval = CONFIG.intervals[index].bybit;
-            const klines = await fetchBybitKlines(state.currentCrypto, interval);
-            state.klines[state.currentCrypto] = klines;
+            // Fetch new klines
+            try {
+                const interval = CONFIG.intervals[index].bybit;
+                state.klines[state.currentCrypto] = await fetchBybitKlines(state.currentCrypto, interval);
+            } catch (e) {
+                console.error('Failed to fetch klines:', e);
+            }
             
             // Recalculate
             await calculateAllParameters(state.currentCrypto);
-            generateAllPredictions();
+            
+            renderPredictionCards();
             updateCharts();
         }
 
         function setChartRange(range) {
             state.currentChartRange = range;
             
-            const buttons = document.querySelectorAll('.chart-range-btn');
-            buttons.forEach(btn => {
+            document.querySelectorAll('.chart-range-btn').forEach(btn => {
                 btn.classList.remove('border', 'border-purple-500', 'bg-white/20');
                 btn.classList.add('bg-white/10');
             });
@@ -1747,18 +1469,14 @@
         }
 
         // ==========================================
-        // UTILITY FUNCTIONS
+        // UTILITIES
         // ==========================================
 
         function formatPrice(price) {
             if (!price && price !== 0) return '$--';
-            if (price >= 1000) {
-                return '$' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            } else if (price >= 1) {
-                return '$' + price.toFixed(2);
-            } else {
-                return '$' + price.toFixed(4);
-            }
+            if (price >= 1000) return '$' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (price >= 1) return '$' + price.toFixed(2);
+            return '$' + price.toFixed(4);
         }
 
         function formatVolume(vol) {
@@ -1777,30 +1495,20 @@
             return num.toFixed(2);
         }
 
-        function updateCurrentTime() {
-            const now = new Date();
-            document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+        function formatTimeLeft(ms) {
+            if (ms <= 0) return 'Expired';
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            
+            if (hours > 0) return `${hours}h ${minutes % 60}m`;
+            if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+            return `${seconds}s`;
         }
 
-        function updateFearGreedUI() {
-            const fg = state.fearGreed;
-            const fgValueEl = document.getElementById('fgValue');
-            const fgLabelEl = document.getElementById('fgLabel');
-            const fgCircleEl = document.getElementById('fgCircle');
-            
-            if (fgValueEl) fgValueEl.textContent = fg.value;
-            if (fgLabelEl) fgLabelEl.textContent = fg.classification.toUpperCase();
-            
-            if (fgCircleEl) {
-                const fgOffset = 283 - (fg.value / 100) * 283;
-                fgCircleEl.style.strokeDashoffset = fgOffset;
-                
-                const fgColor = fg.value < 25 ? '#ff3366' : 
-                               fg.value < 45 ? '#ff6644' :
-                               fg.value < 55 ? '#9945ff' :
-                               fg.value < 75 ? '#00dd66' : '#00ff88';
-                fgCircleEl.style.stroke = fgColor;
-            }
+        function updateCurrentTime() {
+            document.getElementById('currentTime').textContent = 
+                new Date().toLocaleTimeString('en-US', { hour12: false });
         }
 
         // ==========================================
@@ -1808,90 +1516,87 @@
         // ==========================================
 
         async function init() {
-            console.log('Initializing CryptoOracle Pro with Bybit...');
+            console.log('🚀 Initializing CryptoOracle Pro...');
             const loadingStatus = document.getElementById('loadingStatus');
             
             try {
-                // Render static UI elements
                 renderCryptoTabs();
                 renderPredictionCards();
                 initCharts();
-
-                // Fetch initial data for all cryptos
-                loadingStatus.textContent = 'Fetching market data...';
                 
+                // Fetch initial data for all cryptos
                 for (const crypto of CONFIG.cryptos) {
                     loadingStatus.textContent = `Loading ${crypto.name}...`;
                     
-                    // Fetch ticker
-                    const ticker = await fetchBybitTicker(crypto.id);
-                    if (ticker) {
-                        state.prices[crypto.id] = ticker;
-                    }
-                    
-                    // Fetch klines for current interval
-                    if (crypto.id === state.currentCrypto) {
-                        const interval = CONFIG.intervals[state.currentInterval].bybit;
-                        const klines = await fetchBybitKlines(crypto.id, interval);
-                        state.klines[crypto.id] = klines;
+                    try {
+                        // Fetch ticker
+                        const ticker = await fetchBybitTicker(crypto.id);
+                        state.livePrices[crypto.id] = ticker;
+                        
+                        // Fetch klines for current crypto
+                        if (crypto.id === state.currentCrypto) {
+                            const interval = CONFIG.intervals[state.currentInterval].bybit;
+                            state.klines[crypto.id] = await fetchBybitKlines(crypto.id, interval);
+                        }
+                    } catch (e) {
+                        console.error(`Failed to load ${crypto.name}:`, e);
                     }
                 }
                 
-                // Fetch Fear & Greed
-                loadingStatus.textContent = 'Fetching Fear & Greed Index...';
+                // Fear & Greed
+                loadingStatus.textContent = 'Loading Fear & Greed Index...';
                 state.fearGreed = await fetchFearGreedIndex();
                 updateFearGreedUI();
-
-                // Calculate initial parameters
+                
+                // Calculate parameters
                 loadingStatus.textContent = 'Calculating indicators...';
                 await calculateAllParameters(state.currentCrypto);
-
+                
                 // Generate initial predictions
                 loadingStatus.textContent = 'Generating predictions...';
-                generateAllPredictions();
-
+                generatePredictions(state.currentCrypto);
+                
                 // Update UI
                 updateLivePriceUI();
                 updateTabPrices();
-                updatePredictionCards();
-                updateStatsUI();
+                renderParameterHeatmap(state.parameters[state.currentCrypto]);
+                renderPredictionCards();
                 updateCharts();
-
-                // Connect WebSocket for real-time data
+                updateStatsUI();
+                
+                // Connect WebSocket
                 loadingStatus.textContent = 'Connecting to live feed...';
                 initWebSocket();
-
-                // Hide loading overlay
+                
+                // Hide loading
                 document.getElementById('loadingOverlay').style.display = 'none';
-
+                
                 // Start timers
                 setInterval(updateCurrentTime, 1000);
                 setInterval(updateCountdown, 1000);
-                
-                // Update predictions every 5 seconds
-                setInterval(() => {
-                    updatePredictionCards();
-                }, 5000);
+                setInterval(checkExpiredPredictions, 1000);
+                setInterval(renderPredictionCards, 5000);
                 
                 // Refresh Fear & Greed every 5 minutes
                 setInterval(async () => {
                     state.fearGreed = await fetchFearGreedIndex();
                     updateFearGreedUI();
                 }, 300000);
-
-                // Full recalculation every minute
+                
+                // Recalculate parameters every 30 seconds
                 setInterval(async () => {
                     await calculateAllParameters(state.currentCrypto);
+                    renderParameterHeatmap(state.parameters[state.currentCrypto]);
                     updateCharts();
-                }, 60000);
-
-                console.log('CryptoOracle Pro initialized successfully!');
+                }, 30000);
+                
+                console.log('✅ CryptoOracle Pro initialized!');
                 
             } catch (error) {
-                console.error('Error during initialization:', error);
+                console.error('❌ Initialization failed:', error);
                 document.getElementById('loadingOverlay').innerHTML = `
                     <div class="text-center">
-                        <div class="title-font text-xl text-red-400 mb-2">Initialization Failed</div>
+                        <div class="title-font text-xl text-red-400 mb-2">Connection Failed</div>
                         <div class="text-sm text-gray-400 mb-4">${error.message}</div>
                         <button onclick="location.reload()" class="px-4 py-2 bg-purple-600 rounded hover:bg-purple-700">Retry</button>
                     </div>
@@ -1899,7 +1604,7 @@
             }
         }
 
-        // Start the application
+        // Start
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
         } else {
