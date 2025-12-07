@@ -1,6 +1,6 @@
 /**
- * CryptoOracle Pro - Stable Version
- * Fixed: Price flickering, proper data merging, stable WebSocket
+ * CryptoOracle Pro - STABLE VERSION
+ * Проблема мигания полностью устранена
  */
 
 (function() {
@@ -27,434 +27,826 @@
             { label: '1 WEEK', seconds: 604800, key: '1w', bybit: 'W' }
         ],
         investment: 100,
-        api: 'https://api.bybit.com',
+        apiUrl: 'https://api.bybit.com',
         wsUrl: 'wss://stream.bybit.com/v5/public/linear'
     };
 
     // ==========================================
-    // STATE - Single source of truth
+    // GLOBAL STATE
     // ==========================================
     const state = {
-        currentCrypto: 'BTCUSDT',
-        currentInterval: 0,
+        activeCrypto: 'BTCUSDT',
+        activeInterval: 0,
         chartRange: '1d',
+        countdown: 60,
+        wsConnected: false,
+        initialized: false,
         
-        // Price data - NEVER reset to null once populated
-        prices: {},
-        klines: {},
-        openInterest: {},
+        // Данные цен - НИКОГДА не сбрасываются после инициализации
+        priceData: {},
         
-        // Predictions - locked until expiry
-        predictions: {},
+        // Кэш klines
+        klinesData: {},
         
-        // Indicators
-        indicators: {},
+        // Индикаторы
+        indicatorsData: {},
         
-        // Trade history
-        trades: [],
+        // Прогнозы - заблокированы до истечения
+        predictionsData: {},
         
-        // Stats
-        stats: { total: 0, wins: 0, losses: 0, totalPL: 0 },
+        // История сделок
+        tradesHistory: [],
+        
+        // Статистика
+        statsData: {
+            total: 0,
+            wins: 0,
+            losses: 0,
+            totalPL: 0
+        },
         
         // Fear & Greed
-        fearGreed: { value: 50, label: 'Neutral' },
+        fgData: { value: 50, label: 'Neutral' },
         
-        // Countdown
-        countdown: 60,
+        // Open Interest кэш
+        oiData: {},
         
-        // WebSocket
-        ws: null,
-        wsReady: false,
+        // WebSocket instance
+        wsInstance: null,
         
         // Chart instance
-        chart: null,
+        chartInstance: null,
         
-        // Initialization flag
-        initialized: false
+        // Флаг для предотвращения множественных обновлений
+        updateScheduled: false
     };
 
     // ==========================================
-    // SAFE DOM ACCESS
+    // ИНИЦИАЛИЗАЦИЯ НАЧАЛЬНЫХ ДАННЫХ ЦЕН
     // ==========================================
-    function $(id) {
+    function initPriceData() {
+        CONFIG.cryptos.forEach(function(crypto) {
+            state.priceData[crypto.id] = {
+                price: 0,
+                change24h: 0,
+                high24h: 0,
+                low24h: 0,
+                volume24h: 0,
+                fundingRate: 0,
+                isLoaded: false
+            };
+        });
+    }
+
+    // ==========================================
+    // БЕЗОПАСНЫЕ ФУНКЦИИ РАБОТЫ С DOM
+    // ==========================================
+    function getEl(id) {
         return document.getElementById(id);
     }
 
-    function setText(id, text) {
-        const el = $(id);
-        if (el && text !== undefined && text !== null) {
-            el.textContent = text;
+    function safeSetText(id, value) {
+        var el = getEl(id);
+        if (el) {
+            var text = value !== undefined && value !== null ? String(value) : '';
+            if (el.textContent !== text) {
+                el.textContent = text;
+            }
         }
     }
 
-    function setHtml(id, html) {
-        const el = $(id);
-        if (el && html !== undefined) {
+    function safeSetHtml(id, html) {
+        var el = getEl(id);
+        if (el) {
             el.innerHTML = html;
         }
     }
 
-    function setClass(id, className) {
-        const el = $(id);
+    function safeSetStyle(id, property, value) {
+        var el = getEl(id);
         if (el) {
+            el.style[property] = value;
+        }
+    }
+
+    function safeSetClass(id, className) {
+        var el = getEl(id);
+        if (el && el.className !== className) {
             el.className = className;
         }
     }
 
-    function setStyle(id, prop, value) {
-        const el = $(id);
-        if (el) {
-            el.style[prop] = value;
+    // ==========================================
+    // ФОРМАТИРОВАНИЕ
+    // ==========================================
+    function fmtPrice(p) {
+        if (p === undefined || p === null || p === 0 || isNaN(p)) {
+            return '$0.00';
         }
+        p = Number(p);
+        if (p >= 10000) {
+            return '$' + p.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+        }
+        if (p >= 100) {
+            return '$' + p.toFixed(2);
+        }
+        if (p >= 1) {
+            return '$' + p.toFixed(2);
+        }
+        return '$' + p.toFixed(4);
     }
 
-    // ==========================================
-    // NUMBER FORMATTING
-    // ==========================================
-    function formatPrice(price) {
-        if (price === null || price === undefined || isNaN(price)) return '--';
-        if (price >= 10000) return '$' + price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-        if (price >= 1000) return '$' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        if (price >= 1) return '$' + price.toFixed(2);
-        if (price >= 0.01) return '$' + price.toFixed(4);
-        return '$' + price.toFixed(6);
+    function fmtVolume(v) {
+        if (!v || isNaN(v)) return '$0';
+        v = Number(v);
+        if (v >= 1e12) return '$' + (v / 1e12).toFixed(1) + 'T';
+        if (v >= 1e9) return '$' + (v / 1e9).toFixed(1) + 'B';
+        if (v >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+        if (v >= 1e3) return '$' + (v / 1e3).toFixed(1) + 'K';
+        return '$' + v.toFixed(0);
     }
 
-    function formatVolume(vol) {
-        if (!vol || isNaN(vol)) return '--';
-        if (vol >= 1e12) return '$' + (vol / 1e12).toFixed(2) + 'T';
-        if (vol >= 1e9) return '$' + (vol / 1e9).toFixed(2) + 'B';
-        if (vol >= 1e6) return '$' + (vol / 1e6).toFixed(2) + 'M';
-        if (vol >= 1e3) return '$' + (vol / 1e3).toFixed(2) + 'K';
-        return '$' + vol.toFixed(0);
+    function fmtPercent(p, showPlus) {
+        if (p === undefined || p === null || isNaN(p)) return '0.00%';
+        p = Number(p);
+        var prefix = (showPlus !== false && p > 0) ? '+' : '';
+        return prefix + p.toFixed(2) + '%';
     }
 
-    function formatPercent(pct) {
-        if (pct === null || pct === undefined || isNaN(pct)) return '0.00%';
-        return (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
-    }
-
-    function formatTimeLeft(ms) {
+    function fmtTime(ms) {
         if (ms <= 0) return 'Expired';
-        const s = Math.floor(ms / 1000);
-        const m = Math.floor(s / 60);
-        const h = Math.floor(m / 60);
+        var s = Math.floor(ms / 1000);
+        var m = Math.floor(s / 60);
+        var h = Math.floor(m / 60);
         if (h > 0) return h + 'h ' + (m % 60) + 'm';
         if (m > 0) return m + 'm ' + (s % 60) + 's';
         return s + 's';
     }
 
     // ==========================================
-    // API FUNCTIONS
+    // API ЗАПРОСЫ
     // ==========================================
-    async function fetchTicker(symbol) {
-        try {
-            const res = await fetch(`${CONFIG.api}/v5/market/tickers?category=linear&symbol=${symbol}`);
-            const json = await res.json();
-            
-            if (json.retCode === 0 && json.result?.list?.[0]) {
-                const t = json.result.list[0];
-                return {
-                    price: parseFloat(t.lastPrice) || 0,
-                    change24h: (parseFloat(t.price24hPcnt) || 0) * 100,
-                    high24h: parseFloat(t.highPrice24h) || 0,
-                    low24h: parseFloat(t.lowPrice24h) || 0,
-                    volume24h: parseFloat(t.turnover24h) || 0,
-                    fundingRate: (parseFloat(t.fundingRate) || 0) * 100
-                };
-            }
-        } catch (e) {
-            console.error('fetchTicker error:', symbol, e);
-        }
-        return null;
+    function apiRequest(endpoint) {
+        return fetch(CONFIG.apiUrl + endpoint)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.retCode === 0) {
+                    return data.result;
+                }
+                throw new Error('API Error: ' + data.retMsg);
+            });
     }
 
-    async function fetchKlines(symbol, interval, limit = 100) {
-        try {
-            const res = await fetch(
-                `${CONFIG.api}/v5/market/kline?category=linear&symbol=${symbol}&interval=${interval}&limit=${limit}`
-            );
-            const json = await res.json();
-            
-            if (json.retCode === 0 && json.result?.list) {
-                return json.result.list.reverse().map(k => ({
-                    time: parseInt(k[0]),
-                    open: parseFloat(k[1]),
-                    high: parseFloat(k[2]),
-                    low: parseFloat(k[3]),
-                    close: parseFloat(k[4]),
-                    volume: parseFloat(k[5])
-                }));
-            }
-        } catch (e) {
-            console.error('fetchKlines error:', symbol, e);
-        }
-        return [];
+    function loadTickerData(symbol) {
+        return apiRequest('/v5/market/tickers?category=linear&symbol=' + symbol)
+            .then(function(result) {
+                if (result && result.list && result.list[0]) {
+                    var t = result.list[0];
+                    return {
+                        price: parseFloat(t.lastPrice) || 0,
+                        change24h: (parseFloat(t.price24hPcnt) || 0) * 100,
+                        high24h: parseFloat(t.highPrice24h) || 0,
+                        low24h: parseFloat(t.lowPrice24h) || 0,
+                        volume24h: parseFloat(t.turnover24h) || 0,
+                        fundingRate: (parseFloat(t.fundingRate) || 0) * 100
+                    };
+                }
+                return null;
+            })
+            .catch(function(err) {
+                console.error('Ticker error:', symbol, err);
+                return null;
+            });
     }
 
-    async function fetchOpenInterest(symbol) {
-        try {
-            const res = await fetch(
-                `${CONFIG.api}/v5/market/open-interest?category=linear&symbol=${symbol}&intervalTime=1h&limit=1`
-            );
-            const json = await res.json();
-            
-            if (json.retCode === 0 && json.result?.list?.[0]) {
-                return parseFloat(json.result.list[0].openInterest) || 0;
-            }
-        } catch (e) {
-            console.error('fetchOpenInterest error:', e);
-        }
-        return 0;
+    function loadKlinesData(symbol, interval, limit) {
+        limit = limit || 100;
+        return apiRequest('/v5/market/kline?category=linear&symbol=' + symbol + '&interval=' + interval + '&limit=' + limit)
+            .then(function(result) {
+                if (result && result.list) {
+                    var klines = [];
+                    for (var i = result.list.length - 1; i >= 0; i--) {
+                        var k = result.list[i];
+                        klines.push({
+                            time: parseInt(k[0]),
+                            open: parseFloat(k[1]),
+                            high: parseFloat(k[2]),
+                            low: parseFloat(k[3]),
+                            close: parseFloat(k[4]),
+                            volume: parseFloat(k[5])
+                        });
+                    }
+                    return klines;
+                }
+                return [];
+            })
+            .catch(function(err) {
+                console.error('Klines error:', err);
+                return [];
+            });
     }
 
-    async function fetchOrderbook(symbol) {
-        try {
-            const res = await fetch(
-                `${CONFIG.api}/v5/market/orderbook?category=linear&symbol=${symbol}&limit=25`
-            );
-            const json = await res.json();
-            
-            if (json.retCode === 0 && json.result) {
-                const bids = json.result.b.reduce((s, b) => s + parseFloat(b[1]), 0);
-                const asks = json.result.a.reduce((s, a) => s + parseFloat(a[1]), 0);
-                const total = bids + asks;
-                return total > 0 ? (bids - asks) / total : 0;
-            }
-        } catch (e) {
-            console.error('fetchOrderbook error:', e);
-        }
-        return 0;
+    function loadOpenInterest(symbol) {
+        return apiRequest('/v5/market/open-interest?category=linear&symbol=' + symbol + '&intervalTime=1h&limit=1')
+            .then(function(result) {
+                if (result && result.list && result.list[0]) {
+                    return parseFloat(result.list[0].openInterest) || 0;
+                }
+                return 0;
+            })
+            .catch(function() { return 0; });
     }
 
-    async function fetchFearGreed() {
-        try {
-            const res = await fetch('https://api.alternative.me/fng/?limit=1');
-            const json = await res.json();
-            
-            if (json.data?.[0]) {
-                return {
-                    value: parseInt(json.data[0].value) || 50,
-                    label: json.data[0].value_classification || 'Neutral'
-                };
-            }
-        } catch (e) {
-            console.error('fetchFearGreed error:', e);
-        }
-        return { value: 50, label: 'Neutral' };
+    function loadOrderbook(symbol) {
+        return apiRequest('/v5/market/orderbook?category=linear&symbol=' + symbol + '&limit=25')
+            .then(function(result) {
+                if (result && result.b && result.a) {
+                    var bids = 0, asks = 0;
+                    for (var i = 0; i < result.b.length; i++) {
+                        bids += parseFloat(result.b[i][1]);
+                    }
+                    for (var j = 0; j < result.a.length; j++) {
+                        asks += parseFloat(result.a[j][1]);
+                    }
+                    var total = bids + asks;
+                    return total > 0 ? (bids - asks) / total : 0;
+                }
+                return 0;
+            })
+            .catch(function() { return 0; });
+    }
+
+    function loadFearGreed() {
+        return fetch('https://api.alternative.me/fng/?limit=1')
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data && data.data && data.data[0]) {
+                    return {
+                        value: parseInt(data.data[0].value) || 50,
+                        label: data.data[0].value_classification || 'Neutral'
+                    };
+                }
+                return { value: 50, label: 'Neutral' };
+            })
+            .catch(function() {
+                return { value: 50, label: 'Neutral' };
+            });
     }
 
     // ==========================================
-    // WEBSOCKET - Stable connection
+    // WEBSOCKET - СТАБИЛЬНАЯ ВЕРСИЯ
     // ==========================================
-    function connectWebSocket() {
-        if (state.ws) {
-            try { state.ws.close(); } catch(e) {}
+    function startWebSocket() {
+        if (state.wsInstance) {
+            try {
+                state.wsInstance.close();
+            } catch(e) {}
+            state.wsInstance = null;
         }
 
-        updateConnectionStatus('connecting');
+        showConnectionStatus('connecting');
 
         try {
-            state.ws = new WebSocket(CONFIG.wsUrl);
-        } catch (e) {
-            console.error('WebSocket creation failed:', e);
-            setTimeout(connectWebSocket, 5000);
+            state.wsInstance = new WebSocket(CONFIG.wsUrl);
+        } catch(e) {
+            console.error('WS create error:', e);
+            setTimeout(startWebSocket, 5000);
             return;
         }
 
-        state.ws.onopen = function() {
-            console.log('✅ WebSocket connected');
-            state.wsReady = true;
-            updateConnectionStatus('connected');
-            
-            // Subscribe to all tickers
-            const args = CONFIG.cryptos.map(c => 'tickers.' + c.id);
-            state.ws.send(JSON.stringify({ op: 'subscribe', args: args }));
-        };
+        state.wsInstance.onopen = function() {
+            console.log('WS: Connected');
+            state.wsConnected = true;
+            showConnectionStatus('connected');
 
-        state.ws.onmessage = function(event) {
-            try {
-                const msg = JSON.parse(event.data);
-                
-                // Handle ticker updates
-                if (msg.topic && msg.topic.startsWith('tickers.') && msg.data) {
-                    handleTickerMessage(msg.topic.replace('tickers.', ''), msg.data);
-                }
-            } catch (e) {
-                // Ignore parse errors (ping/pong)
+            // Подписываемся на все тикеры
+            var symbols = [];
+            for (var i = 0; i < CONFIG.cryptos.length; i++) {
+                symbols.push('tickers.' + CONFIG.cryptos[i].id);
             }
+            
+            state.wsInstance.send(JSON.stringify({
+                op: 'subscribe',
+                args: symbols
+            }));
         };
 
-        state.ws.onclose = function() {
-            console.log('❌ WebSocket closed');
-            state.wsReady = false;
-            updateConnectionStatus('disconnected');
-            setTimeout(connectWebSocket, 3000);
+        state.wsInstance.onmessage = function(evt) {
+            handleWsMessage(evt.data);
         };
 
-        state.ws.onerror = function() {
-            console.error('WebSocket error');
-            state.wsReady = false;
-            updateConnectionStatus('disconnected');
+        state.wsInstance.onclose = function() {
+            console.log('WS: Disconnected');
+            state.wsConnected = false;
+            showConnectionStatus('disconnected');
+            
+            // Переподключение через 3 секунды
+            setTimeout(startWebSocket, 3000);
+        };
+
+        state.wsInstance.onerror = function() {
+            state.wsConnected = false;
+            showConnectionStatus('disconnected');
         };
     }
 
-    function handleTickerMessage(symbol, data) {
-        // Get existing price data or create new object
-        const existing = state.prices[symbol] || {};
-        
-        // MERGE data - only update fields that are present and valid
-        const newPrice = parseFloat(data.lastPrice);
-        const newChange = parseFloat(data.price24hPcnt);
-        const newHigh = parseFloat(data.highPrice24h);
-        const newLow = parseFloat(data.lowPrice24h);
-        const newVolume = parseFloat(data.turnover24h);
-        const newFunding = parseFloat(data.fundingRate);
-        
-        // Only update if value is valid (not NaN)
-        state.prices[symbol] = {
-            price: !isNaN(newPrice) ? newPrice : existing.price,
-            change24h: !isNaN(newChange) ? newChange * 100 : existing.change24h,
-            high24h: !isNaN(newHigh) ? newHigh : existing.high24h,
-            low24h: !isNaN(newLow) ? newLow : existing.low24h,
-            volume24h: !isNaN(newVolume) ? newVolume : existing.volume24h,
-            fundingRate: !isNaN(newFunding) ? newFunding * 100 : existing.fundingRate,
-            lastUpdate: Date.now()
-        };
-        
-        // Update UI
-        if (symbol === state.currentCrypto) {
-            updatePriceDisplay();
+    function handleWsMessage(rawData) {
+        var msg;
+        try {
+            msg = JSON.parse(rawData);
+        } catch(e) {
+            return; // Игнорируем невалидные сообщения
         }
-        updateTabPrice(symbol);
+
+        // Проверяем что это тикер
+        if (!msg.topic || !msg.data) return;
+        if (msg.topic.indexOf('tickers.') !== 0) return;
+
+        var symbol = msg.topic.replace('tickers.', '');
+        var tickerData = msg.data;
+
+        // Получаем текущие данные
+        var current = state.priceData[symbol];
+        if (!current) return;
+
+        // КЛЮЧЕВОЙ МОМЕНТ: Обновляем ТОЛЬКО если есть валидное значение
+        var newPrice = parseFloat(tickerData.lastPrice);
+        var newChange = parseFloat(tickerData.price24hPcnt);
+        var newHigh = parseFloat(tickerData.highPrice24h);
+        var newLow = parseFloat(tickerData.lowPrice24h);
+        var newVolume = parseFloat(tickerData.turnover24h);
+        var newFunding = parseFloat(tickerData.fundingRate);
+
+        // Обновляем только валидные значения
+        if (!isNaN(newPrice) && newPrice > 0) {
+            current.price = newPrice;
+        }
+        if (!isNaN(newChange)) {
+            current.change24h = newChange * 100;
+        }
+        if (!isNaN(newHigh) && newHigh > 0) {
+            current.high24h = newHigh;
+        }
+        if (!isNaN(newLow) && newLow > 0) {
+            current.low24h = newLow;
+        }
+        if (!isNaN(newVolume) && newVolume > 0) {
+            current.volume24h = newVolume;
+        }
+        if (!isNaN(newFunding)) {
+            current.fundingRate = newFunding * 100;
+        }
+
+        current.isLoaded = true;
+
+        // Планируем обновление UI (debounce)
+        scheduleUIUpdate();
     }
 
-    function updateConnectionStatus(status) {
-        const el = $('wsStatus');
+    function showConnectionStatus(status) {
+        var el = getEl('wsStatus');
         if (!el) return;
-        
-        const configs = {
-            connected: { cls: 'connection-status connected', text: 'Live' },
-            disconnected: { cls: 'connection-status disconnected', text: 'Offline' },
-            connecting: { cls: 'connection-status connecting', text: 'Connecting...' }
-        };
-        
-        const cfg = configs[status] || configs.connecting;
-        el.className = cfg.cls;
-        el.innerHTML = '<div class="status-dot"></div><span>' + cfg.text + '</span>';
+
+        var html, cls;
+        switch(status) {
+            case 'connected':
+                cls = 'connection-status connected';
+                html = '<div class="status-dot"></div><span>Live</span>';
+                break;
+            case 'disconnected':
+                cls = 'connection-status disconnected';
+                html = '<div class="status-dot"></div><span>Offline</span>';
+                break;
+            default:
+                cls = 'connection-status connecting';
+                html = '<div class="status-dot"></div><span>Connecting...</span>';
+        }
+
+        el.className = cls;
+        el.innerHTML = html;
     }
 
     // ==========================================
-    // INDICATORS
+    // DEBOUNCED UI UPDATE
     // ==========================================
-    function calcRSI(prices, period) {
-        period = period || 14;
-        if (prices.length < period + 1) return 50;
+    function scheduleUIUpdate() {
+        if (state.updateScheduled) return;
+        state.updateScheduled = true;
         
-        let gains = 0, losses = 0;
-        for (let i = prices.length - period; i < prices.length; i++) {
-            const diff = prices[i] - prices[i - 1];
+        requestAnimationFrame(function() {
+            state.updateScheduled = false;
+            performUIUpdate();
+        });
+    }
+
+    function performUIUpdate() {
+        updateMainPrice();
+        updateAllTabPrices();
+    }
+
+    // ==========================================
+    // UI ОБНОВЛЕНИЯ
+    // ==========================================
+    function updateMainPrice() {
+        var data = state.priceData[state.activeCrypto];
+        if (!data || !data.isLoaded) return;
+
+        // Основная цена
+        safeSetText('livePrice', fmtPrice(data.price));
+
+        // Изменение за 24ч
+        var changeText = fmtPercent(data.change24h);
+        var changeClass = 'text-lg ' + (data.change24h >= 0 ? 'text-green-400' : 'text-red-400');
+        safeSetText('priceChange', changeText);
+        safeSetClass('priceChange', changeClass);
+
+        // Доп. данные
+        safeSetText('high24h', fmtPrice(data.high24h));
+        safeSetText('low24h', fmtPrice(data.low24h));
+        safeSetText('volume24h', fmtVolume(data.volume24h));
+
+        // Funding rate
+        var fr = data.fundingRate;
+        safeSetText('fundingRate', 'Funding: ' + fmtPercent(fr));
+        var frClass = 'funding-rate ' + (fr > 0 ? 'positive' : fr < 0 ? 'negative' : 'neutral');
+        safeSetClass('fundingRate', frClass);
+
+        // Open Interest
+        var oi = state.oiData[state.activeCrypto] || 0;
+        if (oi > 0 && data.price > 0) {
+            safeSetText('openInterest', fmtVolume(oi * data.price));
+        }
+    }
+
+    function updateAllTabPrices() {
+        for (var i = 0; i < CONFIG.cryptos.length; i++) {
+            var crypto = CONFIG.cryptos[i];
+            var data = state.priceData[crypto.id];
+            
+            if (data && data.isLoaded) {
+                safeSetText('tab-price-' + crypto.id, fmtPrice(data.price));
+                
+                var changeEl = getEl('tab-change-' + crypto.id);
+                if (changeEl) {
+                    changeEl.textContent = fmtPercent(data.change24h);
+                    changeEl.className = 'text-xs ' + (data.change24h >= 0 ? 'text-green-400' : 'text-red-400');
+                }
+            }
+        }
+    }
+
+    function updateCPSGauge() {
+        var indicators = state.indicatorsData[state.activeCrypto];
+        if (!indicators) return;
+
+        var cps = computeCPS(indicators);
+        var info = getCPSLabel(cps);
+
+        // Стрелка
+        var angle = cps * 90;
+        safeSetStyle('gaugeNeedle', 'transform', 'translateX(-50%) rotate(' + angle + 'deg)');
+
+        // Значение
+        safeSetText('cpsValue', Math.round(cps * 100));
+        safeSetStyle('cpsValue', 'color', info.color);
+        safeSetText('cpsLabel', info.label);
+        safeSetStyle('cpsLabel', 'color', info.color);
+    }
+
+    function updateFearGreedGauge() {
+        var fg = state.fgData;
+        safeSetText('fgValue', fg.value);
+        safeSetText('fgLabel', fg.label.toUpperCase());
+
+        var offset = 283 - (fg.value / 100) * 283;
+        safeSetStyle('fgCircle', 'strokeDashoffset', offset.toString());
+
+        var color = '#9945ff';
+        if (fg.value < 25) color = '#ff3366';
+        else if (fg.value < 45) color = '#ff6644';
+        else if (fg.value >= 75) color = '#00ff88';
+        else if (fg.value >= 55) color = '#00dd66';
+
+        safeSetStyle('fgCircle', 'stroke', color);
+    }
+
+    function updateCountdownDisplay() {
+        state.countdown--;
+        if (state.countdown <= 0) {
+            state.countdown = CONFIG.intervals[state.activeInterval].seconds;
+            doRefresh();
+        }
+
+        var m = Math.floor(state.countdown / 60);
+        var s = state.countdown % 60;
+        var text = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+        safeSetText('countdownText', text);
+
+        var total = CONFIG.intervals[state.activeInterval].seconds;
+        var pct = state.countdown / total;
+        var offset = 283 * (1 - pct);
+        safeSetStyle('countdownRing', 'strokeDashoffset', offset.toString());
+    }
+
+    function updateTimeDisplay() {
+        var now = new Date();
+        var h = now.getHours();
+        var m = now.getMinutes();
+        var s = now.getSeconds();
+        var text = (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+        safeSetText('currentTime', text);
+    }
+
+    function updateStatsDisplay() {
+        var st = state.statsData;
+        var winRate = st.total > 0 ? (st.wins / st.total * 100) : 0;
+
+        safeSetText('winRate', winRate.toFixed(1) + '%');
+        safeSetText('totalTrades', st.total);
+        safeSetText('winningTrades', st.wins);
+        safeSetText('losingTrades', st.losses);
+
+        var plEl = getEl('totalPL');
+        if (plEl) {
+            plEl.textContent = (st.totalPL >= 0 ? '+' : '') + '$' + st.totalPL.toFixed(2);
+            plEl.className = 'title-font ' + (st.totalPL >= 0 ? 'text-green-400' : 'text-red-400');
+        }
+
+        // Средние
+        var wins = state.tradesHistory.filter(function(t) { return t.pl > 0; });
+        var losses = state.tradesHistory.filter(function(t) { return t.pl < 0; });
+
+        var avgW = 0, avgL = 0;
+        if (wins.length > 0) {
+            var sumW = 0;
+            for (var i = 0; i < wins.length; i++) sumW += wins[i].pl;
+            avgW = sumW / wins.length;
+        }
+        if (losses.length > 0) {
+            var sumL = 0;
+            for (var j = 0; j < losses.length; j++) sumL += Math.abs(losses[j].pl);
+            avgL = sumL / losses.length;
+        }
+
+        safeSetText('avgProfit', '+$' + avgW.toFixed(2));
+        safeSetText('avgLoss', '-$' + avgL.toFixed(2));
+
+        if (state.tradesHistory.length > 0) {
+            var best = -Infinity, worst = Infinity;
+            for (var k = 0; k < state.tradesHistory.length; k++) {
+                var pl = state.tradesHistory[k].pl || 0;
+                if (pl > best) best = pl;
+                if (pl < worst) worst = pl;
+            }
+            safeSetText('bestTrade', '+$' + Math.max(0, best).toFixed(2));
+            safeSetText('worstTrade', '-$' + Math.abs(Math.min(0, worst)).toFixed(2));
+        }
+    }
+
+    // ==========================================
+    // RENDER ФУНКЦИИ
+    // ==========================================
+    function renderCryptoTabs() {
+        var html = '';
+        for (var i = 0; i < CONFIG.cryptos.length; i++) {
+            var c = CONFIG.cryptos[i];
+            var active = c.id === state.activeCrypto ? 'active' : '';
+            
+            html += '<div class="crypto-tab glass-panel px-4 py-3 flex items-center gap-3 ' + active + '" onclick="App.selectCrypto(\'' + c.id + '\')">';
+            html += '<div class="w-8 h-8 rounded-full flex items-center justify-center" style="background:' + c.color + '30">';
+            html += '<span class="title-font font-bold" style="color:' + c.color + '">' + c.symbol[0] + '</span>';
+            html += '</div>';
+            html += '<div><div class="font-semibold">' + c.symbol + '</div>';
+            html += '<div class="text-xs text-gray-500">' + c.name + '</div></div>';
+            html += '<div class="ml-auto text-right">';
+            html += '<div id="tab-price-' + c.id + '" class="font-mono text-sm">Loading...</div>';
+            html += '<div id="tab-change-' + c.id + '" class="text-xs text-gray-400">--%</div>';
+            html += '</div></div>';
+        }
+        safeSetHtml('cryptoTabs', html);
+    }
+
+    function renderPredictionCards() {
+        var preds = state.predictionsData[state.activeCrypto] || {};
+        var html = '';
+
+        for (var i = 0; i < CONFIG.intervals.length; i++) {
+            var interval = CONFIG.intervals[i];
+            var pred = preds[interval.key];
+            var isActive = pred && pred.status === 'ACTIVE';
+            var isCurrent = i === state.activeInterval;
+
+            var progress = 0;
+            var timeLeft = 'Waiting...';
+
+            if (pred && isActive) {
+                var elapsed = Date.now() - pred.createdAt;
+                var total = pred.expiresAt - pred.createdAt;
+                progress = Math.min(100, (elapsed / total) * 100);
+                timeLeft = fmtTime(pred.expiresAt - Date.now());
+            }
+
+            var dirClass = '';
+            var dirText = '--';
+            if (pred) {
+                dirClass = pred.direction === 'LONG' ? 'text-green-400' : 'text-red-400';
+                dirText = pred.direction + ' (' + pred.confidence + '%)';
+            }
+
+            var cardClass = 'prediction-card glass-panel p-4';
+            if (isCurrent) cardClass += ' active';
+            if (isActive) cardClass += ' locked';
+
+            html += '<div class="' + cardClass + '" onclick="App.selectInterval(' + i + ')">';
+            html += '<div class="flex items-center justify-between mb-2">';
+            html += '<span class="title-font text-xs text-gray-400">' + interval.label + '</span>';
+            if (isActive) html += '<span class="text-xs">🔒</span>';
+            html += '</div>';
+            html += '<div class="title-font text-lg font-bold">' + (pred ? fmtPrice(pred.targetPrice) : '--') + '</div>';
+            html += '<div class="text-xs mb-1 ' + dirClass + '">' + dirText + '</div>';
+            html += '<div class="text-xs text-gray-500">' + timeLeft + '</div>';
+            html += '<div class="progress-bar"><div class="progress-fill" style="width:' + progress + '%"></div></div>';
+            html += '</div>';
+        }
+
+        safeSetHtml('predictionCards', html);
+    }
+
+    function renderIndicatorsHeatmap() {
+        var ind = state.indicatorsData[state.activeCrypto];
+        if (!ind) return;
+
+        var params = [
+            { key: 'rsi', name: 'RSI', icon: '📊' },
+            { key: 'macd', name: 'MACD', icon: '📈' },
+            { key: 'bollinger', name: 'BB', icon: '📉' },
+            { key: 'momentum', name: 'MOM', icon: '🚀' },
+            { key: 'orderbook', name: 'ORDERS', icon: '📕' },
+            { key: 'funding', name: 'FUND', icon: '💰' },
+            { key: 'fearGreed', name: 'F&G', icon: '😱' }
+        ];
+
+        var html = '';
+        for (var i = 0; i < params.length; i++) {
+            var p = params[i];
+            var val = ind[p.key] || 0;
+            var cls = val > 0.1 ? 'bullish' : val < -0.1 ? 'bearish' : 'neutral';
+            var colorClass = val >= 0 ? 'text-green-400' : 'text-red-400';
+            var pctText = (val >= 0 ? '+' : '') + Math.round(val * 100) + '%';
+
+            html += '<div class="param-block ' + cls + '">';
+            html += '<div class="flex items-center justify-between mb-1">';
+            html += '<span class="text-lg">' + p.icon + '</span>';
+            html += '<span class="text-xs font-mono ' + colorClass + '">' + pctText + '</span>';
+            html += '</div>';
+            html += '<div class="text-xs text-gray-400">' + p.name + '</div>';
+            html += '</div>';
+        }
+
+        safeSetHtml('paramHeatmap', html);
+    }
+
+    function renderTradeHistory() {
+        if (state.tradesHistory.length === 0) {
+            safeSetHtml('tradeHistory', '<div class="text-center text-gray-500 py-8">Waiting for predictions to complete...</div>');
+            return;
+        }
+
+        var html = '';
+        var trades = state.tradesHistory.slice(0, 20);
+
+        for (var i = 0; i < trades.length; i++) {
+            var t = trades[i];
+            var crypto = null;
+            for (var j = 0; j < CONFIG.cryptos.length; j++) {
+                if (CONFIG.cryptos[j].id === t.symbol) {
+                    crypto = CONFIG.cryptos[j];
+                    break;
+                }
+            }
+
+            var accClass = t.accuracy >= 60 ? 'high' : t.accuracy >= 40 ? 'medium' : 'low';
+            var plClass = t.pl >= 0 ? 'text-green-400' : 'text-red-400';
+            var dirClass = t.direction === 'LONG' ? 'long' : 'short';
+            var statusClass = 'status-' + t.status.toLowerCase();
+            var timeStr = new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            html += '<div class="trade-row">';
+            html += '<div class="text-gray-400">' + timeStr + '</div>';
+            html += '<div style="color:' + (crypto ? crypto.color : '#fff') + '">' + (crypto ? crypto.symbol : t.symbol) + '</div>';
+            html += '<div><span class="direction-badge ' + dirClass + '">' + t.direction + '</span></div>';
+            html += '<div class="text-gray-400">' + t.intervalLabel + '</div>';
+            html += '<div class="font-mono text-xs">' + fmtPrice(t.entryPrice) + ' → ' + fmtPrice(t.exitPrice) + '</div>';
+            html += '<div class="font-mono text-xs text-gray-400">' + fmtPrice(t.targetPrice) + '</div>';
+            html += '<div><span class="accuracy-badge ' + accClass + '">' + (t.accuracy || 0).toFixed(0) + '%</span></div>';
+            html += '<div class="font-mono font-bold ' + plClass + '">' + (t.pl >= 0 ? '+' : '') + '$' + (t.pl || 0).toFixed(2) + '</div>';
+            html += '<div class="' + statusClass + '">' + t.status + '</div>';
+            html += '</div>';
+        }
+
+        safeSetHtml('tradeHistory', html);
+    }
+
+    // ==========================================
+    // ИНДИКАТОРЫ
+    // ==========================================
+    function calcRSI(closes, period) {
+        period = period || 14;
+        if (closes.length < period + 1) return 50;
+
+        var gains = 0, losses = 0;
+        for (var i = closes.length - period; i < closes.length; i++) {
+            var diff = closes[i] - closes[i - 1];
             if (diff > 0) gains += diff;
             else losses -= diff;
         }
-        
+
         if (losses === 0) return 100;
-        const rs = (gains / period) / (losses / period);
+        var rs = (gains / period) / (losses / period);
         return 100 - (100 / (1 + rs));
     }
 
-    function calcMACD(prices) {
-        if (prices.length < 26) return 0;
-        
-        function ema(data, period) {
-            const k = 2 / (period + 1);
-            let result = 0;
-            for (let i = 0; i < period && i < data.length; i++) {
-                result += data[i];
-            }
-            result /= Math.min(period, data.length);
-            
-            for (let i = period; i < data.length; i++) {
-                result = data[i] * k + result * (1 - k);
+    function calcMACD(closes) {
+        if (closes.length < 26) return 0;
+
+        function ema(data, p) {
+            var k = 2 / (p + 1);
+            var sum = 0;
+            for (var i = 0; i < p && i < data.length; i++) sum += data[i];
+            var result = sum / Math.min(p, data.length);
+            for (var j = p; j < data.length; j++) {
+                result = data[j] * k + result * (1 - k);
             }
             return result;
         }
-        
-        return ema(prices, 12) - ema(prices, 26);
+
+        return ema(closes, 12) - ema(closes, 26);
     }
 
-    function calcBollinger(prices, period) {
+    function calcBollinger(closes, period) {
         period = period || 20;
-        if (prices.length < period) return 0.5;
-        
-        const slice = prices.slice(-period);
-        let sum = 0;
-        for (let i = 0; i < slice.length; i++) sum += slice[i];
-        const avg = sum / period;
-        
-        let variance = 0;
-        for (let i = 0; i < slice.length; i++) {
-            variance += (slice[i] - avg) * (slice[i] - avg);
+        if (closes.length < period) return 0.5;
+
+        var slice = closes.slice(-period);
+        var sum = 0;
+        for (var i = 0; i < slice.length; i++) sum += slice[i];
+        var avg = sum / period;
+
+        var variance = 0;
+        for (var j = 0; j < slice.length; j++) {
+            variance += (slice[j] - avg) * (slice[j] - avg);
         }
-        const std = Math.sqrt(variance / period);
-        
+        var std = Math.sqrt(variance / period);
+
         if (std === 0) return 0.5;
-        const current = prices[prices.length - 1];
-        const lower = avg - 2 * std;
-        const upper = avg + 2 * std;
+        var current = closes[closes.length - 1];
+        var lower = avg - 2 * std;
+        var upper = avg + 2 * std;
         return (current - lower) / (upper - lower);
     }
 
-    function calcMomentum(prices, period) {
+    function calcMomentum(closes, period) {
         period = period || 10;
-        if (prices.length < period + 1) return 0;
-        const current = prices[prices.length - 1];
-        const past = prices[prices.length - period - 1];
+        if (closes.length < period + 1) return 0;
+        var current = closes[closes.length - 1];
+        var past = closes[closes.length - period - 1];
         if (past === 0) return 0;
         return ((current - past) / past) * 100;
     }
 
-    async function calculateAllIndicators(symbol) {
-        const klines = state.klines[symbol];
+    function computeIndicators(symbol) {
+        var klines = state.klinesData[symbol];
         if (!klines || klines.length < 30) return null;
-        
-        const closes = klines.map(function(k) { return k.close; });
-        const priceData = state.prices[symbol];
-        
-        // Fetch additional data
-        const orderbook = await fetchOrderbook(symbol);
-        const oi = await fetchOpenInterest(symbol);
-        state.openInterest[symbol] = oi;
-        
-        // Calculate indicators
-        const rsi = calcRSI(closes);
-        const macd = calcMACD(closes);
-        const bb = calcBollinger(closes);
-        const mom = calcMomentum(closes);
-        
-        // Normalize to -1 to 1
-        const currentPrice = priceData?.price || closes[closes.length - 1];
-        
-        state.indicators[symbol] = {
+
+        var closes = [];
+        for (var i = 0; i < klines.length; i++) {
+            closes.push(klines[i].close);
+        }
+
+        var priceData = state.priceData[symbol];
+        var currentPrice = priceData && priceData.price > 0 ? priceData.price : closes[closes.length - 1];
+
+        var rsi = calcRSI(closes);
+        var macd = calcMACD(closes);
+        var bb = calcBollinger(closes);
+        var mom = calcMomentum(closes);
+
+        // Нормализация -1 до 1
+        return {
             rsi: (50 - rsi) / 50,
             macd: Math.max(-1, Math.min(1, macd / currentPrice * 100)),
             bollinger: (0.5 - bb) * 2,
             momentum: Math.max(-1, Math.min(1, mom / 5)),
-            orderbook: orderbook,
-            funding: priceData?.fundingRate ? -Math.max(-1, Math.min(1, priceData.fundingRate * 10)) : 0,
-            fearGreed: (50 - state.fearGreed.value) / 50
+            orderbook: 0, // Будет обновлено отдельно
+            funding: priceData ? -Math.max(-1, Math.min(1, priceData.fundingRate * 10)) : 0,
+            fearGreed: (50 - state.fgData.value) / 50
         };
-        
-        return state.indicators[symbol];
     }
 
-    // ==========================================
-    // CPS CALCULATION
-    // ==========================================
-    function calculateCPS(indicators) {
+    function computeCPS(indicators) {
         if (!indicators) return 0;
-        
-        const weights = {
+
+        var weights = {
             rsi: 0.18,
             macd: 0.15,
             bollinger: 0.12,
@@ -463,18 +855,16 @@
             funding: 0.13,
             fearGreed: 0.12
         };
-        
-        let cps = 0;
-        for (const key in weights) {
-            if (indicators[key] !== undefined) {
-                cps += (indicators[key] || 0) * weights[key];
-            }
+
+        var cps = 0;
+        for (var key in weights) {
+            cps += (indicators[key] || 0) * weights[key];
         }
-        
+
         return Math.max(-1, Math.min(1, cps));
     }
 
-    function getCPSInfo(cps) {
+    function getCPSLabel(cps) {
         if (cps >= 0.4) return { label: 'STRONG BUY', color: '#00ff88', dir: 'LONG' };
         if (cps >= 0.1) return { label: 'BUY', color: '#00dd66', dir: 'LONG' };
         if (cps >= -0.1) return { label: 'NEUTRAL', color: '#9945ff', dir: 'LONG' };
@@ -483,26 +873,25 @@
     }
 
     // ==========================================
-    // PREDICTIONS
+    // ПРОГНОЗЫ
     // ==========================================
     function createPrediction(symbol, intervalCfg) {
-        const priceData = state.prices[symbol];
-        const indicators = state.indicators[symbol];
-        
-        if (!priceData || !priceData.price || !indicators) return null;
-        
-        const cps = calculateCPS(indicators);
-        const info = getCPSInfo(cps);
-        
-        // Calculate target
-        const volatility = 0.008;
-        const timeFactor = Math.sqrt(intervalCfg.seconds / 60);
-        const direction = info.dir === 'LONG' ? 1 : -1;
-        const magnitude = Math.abs(cps);
-        
-        const move = priceData.price * volatility * timeFactor * magnitude * direction;
-        const target = priceData.price + move;
-        
+        var priceData = state.priceData[symbol];
+        var indicators = state.indicatorsData[symbol];
+
+        if (!priceData || priceData.price <= 0 || !indicators) return null;
+
+        var cps = computeCPS(indicators);
+        var info = getCPSLabel(cps);
+
+        var volatility = 0.008;
+        var timeFactor = Math.sqrt(intervalCfg.seconds / 60);
+        var direction = info.dir === 'LONG' ? 1 : -1;
+        var magnitude = Math.abs(cps);
+
+        var move = priceData.price * volatility * timeFactor * magnitude * direction;
+        var target = priceData.price + move;
+
         return {
             id: symbol + '-' + intervalCfg.key + '-' + Date.now(),
             symbol: symbol,
@@ -523,31 +912,30 @@
     }
 
     function generatePredictions(symbol) {
-        if (!state.predictions[symbol]) {
-            state.predictions[symbol] = {};
+        if (!state.predictionsData[symbol]) {
+            state.predictionsData[symbol] = {};
         }
-        
-        for (let i = 0; i < CONFIG.intervals.length; i++) {
-            const interval = CONFIG.intervals[i];
-            const existing = state.predictions[symbol][interval.key];
-            
-            // Only create if no active prediction exists
+
+        for (var i = 0; i < CONFIG.intervals.length; i++) {
+            var interval = CONFIG.intervals[i];
+            var existing = state.predictionsData[symbol][interval.key];
+
             if (!existing || existing.status !== 'ACTIVE') {
-                const pred = createPrediction(symbol, interval);
+                var pred = createPrediction(symbol, interval);
                 if (pred) {
-                    state.predictions[symbol][interval.key] = pred;
-                    console.log('📊 New prediction:', symbol, interval.label, pred.direction);
+                    state.predictionsData[symbol][interval.key] = pred;
+                    console.log('New prediction:', symbol, interval.label, pred.direction);
                 }
             }
         }
     }
 
     function checkExpiredPredictions() {
-        const now = Date.now();
-        
-        for (const symbol in state.predictions) {
-            for (const intervalKey in state.predictions[symbol]) {
-                const pred = state.predictions[symbol][intervalKey];
+        var now = Date.now();
+
+        for (var symbol in state.predictionsData) {
+            for (var intervalKey in state.predictionsData[symbol]) {
+                var pred = state.predictionsData[symbol][intervalKey];
                 if (pred && pred.status === 'ACTIVE' && now >= pred.expiresAt) {
                     evaluatePrediction(pred);
                 }
@@ -556,345 +944,83 @@
     }
 
     function evaluatePrediction(pred) {
-        const priceData = state.prices[pred.symbol];
-        if (!priceData || !priceData.price) return;
-        
-        const exitPrice = priceData.price;
-        const entryPrice = pred.entryPrice;
-        const change = (exitPrice - entryPrice) / entryPrice;
-        
-        // Calculate P/L
-        let pl;
+        var priceData = state.priceData[pred.symbol];
+        if (!priceData || priceData.price <= 0) return;
+
+        var exitPrice = priceData.price;
+        var entryPrice = pred.entryPrice;
+        var change = (exitPrice - entryPrice) / entryPrice;
+
+        // P/L
+        var pl;
         if (pred.direction === 'LONG') {
             pl = change * CONFIG.investment;
         } else {
             pl = -change * CONFIG.investment;
         }
-        
-        // Calculate accuracy
-        const predictedChange = (pred.targetPrice - entryPrice) / entryPrice;
-        const actualDir = change > 0 ? 'LONG' : 'SHORT';
-        const correct = pred.direction === actualDir;
-        
-        let accuracy;
+
+        // Accuracy
+        var predictedChange = (pred.targetPrice - entryPrice) / entryPrice;
+        var actualDir = change > 0 ? 'LONG' : 'SHORT';
+        var correct = pred.direction === actualDir;
+
+        var accuracy;
         if (correct) {
             accuracy = Math.min(100, 50 + Math.abs(change / predictedChange) * 30);
         } else {
             accuracy = Math.max(0, 50 - Math.abs(change) * 500);
         }
-        
+
         // Update prediction
         pred.exitPrice = exitPrice;
         pred.pl = pl;
         pred.accuracy = accuracy;
         pred.status = pl >= 0 ? 'WON' : 'LOST';
-        
+
         // Add to history
-        state.trades.unshift(Object.assign({}, pred));
-        if (state.trades.length > 50) state.trades.pop();
-        
+        var tradeCopy = {};
+        for (var k in pred) tradeCopy[k] = pred[k];
+        state.tradesHistory.unshift(tradeCopy);
+        if (state.tradesHistory.length > 50) state.tradesHistory.pop();
+
         // Update stats
-        state.stats.total++;
-        if (pl >= 0) state.stats.wins++;
-        else state.stats.losses++;
-        state.stats.totalPL += pl;
-        
-        console.log('✅ Trade closed:', pred.symbol, pred.direction, 'P/L: $' + pl.toFixed(2));
-        
+        state.statsData.total++;
+        if (pl >= 0) state.statsData.wins++;
+        else state.statsData.losses++;
+        state.statsData.totalPL += pl;
+
+        console.log('Trade closed:', pred.symbol, pred.direction, 'P/L: $' + pl.toFixed(2));
+
         // Create new prediction
-        const interval = CONFIG.intervals.find(function(i) { return i.key === pred.interval; });
-        if (interval) {
-            const newPred = createPrediction(pred.symbol, interval);
-            if (newPred) {
-                state.predictions[pred.symbol][pred.interval] = newPred;
+        var intervalCfg = null;
+        for (var i = 0; i < CONFIG.intervals.length; i++) {
+            if (CONFIG.intervals[i].key === pred.interval) {
+                intervalCfg = CONFIG.intervals[i];
+                break;
             }
         }
-        
+
+        if (intervalCfg) {
+            var newPred = createPrediction(pred.symbol, intervalCfg);
+            if (newPred) {
+                state.predictionsData[pred.symbol][pred.interval] = newPred;
+            }
+        }
+
         // Update UI
         renderTradeHistory();
         updateStatsDisplay();
-    }
-
-    // ==========================================
-    // UI UPDATES
-    // ==========================================
-    function updatePriceDisplay() {
-        const data = state.prices[state.currentCrypto];
-        if (!data || !data.price) return;
-        
-        setText('livePrice', formatPrice(data.price));
-        
-        const change = data.change24h || 0;
-        setText('priceChange', formatPercent(change));
-        setClass('priceChange', 'text-lg ' + (change >= 0 ? 'text-green-400' : 'text-red-400'));
-        
-        setText('high24h', formatPrice(data.high24h));
-        setText('low24h', formatPrice(data.low24h));
-        setText('volume24h', formatVolume(data.volume24h));
-        
-        // Funding rate
-        const fr = data.fundingRate || 0;
-        setText('fundingRate', 'Funding: ' + formatPercent(fr));
-        setClass('fundingRate', 'funding-rate ' + (fr > 0 ? 'positive' : fr < 0 ? 'negative' : 'neutral'));
-        
-        // Open interest
-        const oi = state.openInterest[state.currentCrypto];
-        if (oi && data.price) {
-            setText('openInterest', formatVolume(oi * data.price));
-        }
-    }
-
-    function updateTabPrice(symbol) {
-        const data = state.prices[symbol];
-        if (!data || !data.price) return;
-        
-        setText('tab-price-' + symbol, formatPrice(data.price));
-        
-        const change = data.change24h || 0;
-        const el = $('tab-change-' + symbol);
-        if (el) {
-            el.textContent = formatPercent(change);
-            el.className = 'text-xs ' + (change >= 0 ? 'text-green-400' : 'text-red-400');
-        }
-    }
-
-    function updateCPSDisplay() {
-        const indicators = state.indicators[state.currentCrypto];
-        const cps = calculateCPS(indicators);
-        const info = getCPSInfo(cps);
-        
-        // Gauge needle rotation
-        const angle = cps * 90;
-        setStyle('gaugeNeedle', 'transform', 'translateX(-50%) rotate(' + angle + 'deg)');
-        
-        setText('cpsValue', Math.round(cps * 100));
-        setStyle('cpsValue', 'color', info.color);
-        setText('cpsLabel', info.label);
-        setStyle('cpsLabel', 'color', info.color);
-    }
-
-    function updateFearGreedDisplay() {
-        const fg = state.fearGreed;
-        setText('fgValue', fg.value);
-        setText('fgLabel', fg.label.toUpperCase());
-        
-        const offset = 283 - (fg.value / 100) * 283;
-        setStyle('fgCircle', 'strokeDashoffset', offset);
-        
-        let color = '#9945ff';
-        if (fg.value < 25) color = '#ff3366';
-        else if (fg.value < 45) color = '#ff6644';
-        else if (fg.value >= 75) color = '#00ff88';
-        else if (fg.value >= 55) color = '#00dd66';
-        
-        setStyle('fgCircle', 'stroke', color);
-    }
-
-    function updateStatsDisplay() {
-        const s = state.stats;
-        const winRate = s.total > 0 ? (s.wins / s.total * 100) : 0;
-        
-        setText('winRate', winRate.toFixed(1) + '%');
-        setText('totalTrades', s.total);
-        setText('winningTrades', s.wins);
-        setText('losingTrades', s.losses);
-        
-        const plEl = $('totalPL');
-        if (plEl) {
-            plEl.textContent = (s.totalPL >= 0 ? '+' : '') + '$' + s.totalPL.toFixed(2);
-            plEl.className = 'title-font ' + (s.totalPL >= 0 ? 'text-green-400' : 'text-red-400');
-        }
-        
-        // Calculate averages
-        const wins = state.trades.filter(function(t) { return t.pl > 0; });
-        const losses = state.trades.filter(function(t) { return t.pl < 0; });
-        
-        let avgWin = 0, avgLoss = 0;
-        if (wins.length > 0) {
-            let sum = 0;
-            for (let i = 0; i < wins.length; i++) sum += wins[i].pl;
-            avgWin = sum / wins.length;
-        }
-        if (losses.length > 0) {
-            let sum = 0;
-            for (let i = 0; i < losses.length; i++) sum += Math.abs(losses[i].pl);
-            avgLoss = sum / losses.length;
-        }
-        
-        setText('avgProfit', '+$' + avgWin.toFixed(2));
-        setText('avgLoss', '-$' + avgLoss.toFixed(2));
-        
-        if (state.trades.length > 0) {
-            let best = state.trades[0].pl, worst = state.trades[0].pl;
-            for (let i = 1; i < state.trades.length; i++) {
-                if (state.trades[i].pl > best) best = state.trades[i].pl;
-                if (state.trades[i].pl < worst) worst = state.trades[i].pl;
-            }
-            setText('bestTrade', '+$' + Math.max(0, best).toFixed(2));
-            setText('worstTrade', '-$' + Math.abs(Math.min(0, worst)).toFixed(2));
-        }
-    }
-
-    function updateCountdownDisplay() {
-        state.countdown--;
-        
-        if (state.countdown <= 0) {
-            state.countdown = CONFIG.intervals[state.currentInterval].seconds;
-            refreshData();
-        }
-        
-        const mins = Math.floor(state.countdown / 60);
-        const secs = state.countdown % 60;
-        setText('countdownText', String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0'));
-        
-        const total = CONFIG.intervals[state.currentInterval].seconds;
-        const progress = state.countdown / total;
-        setStyle('countdownRing', 'strokeDashoffset', (283 * (1 - progress)).toString());
-    }
-
-    function updateTimeDisplay() {
-        const now = new Date();
-        setText('currentTime', now.toLocaleTimeString('en-US', { hour12: false }));
-    }
-
-    // ==========================================
-    // RENDER FUNCTIONS
-    // ==========================================
-    function renderCryptoTabs() {
-        let html = '';
-        for (let i = 0; i < CONFIG.cryptos.length; i++) {
-            const c = CONFIG.cryptos[i];
-            const isActive = c.id === state.currentCrypto;
-            html += '<div class="crypto-tab glass-panel px-4 py-3 flex items-center gap-3 ' + (isActive ? 'active' : '') + '" onclick="App.selectCrypto(\'' + c.id + '\')">' +
-                '<div class="w-8 h-8 rounded-full flex items-center justify-center" style="background:' + c.color + '30">' +
-                '<span class="title-font font-bold" style="color:' + c.color + '">' + c.symbol[0] + '</span>' +
-                '</div>' +
-                '<div>' +
-                '<div class="font-semibold">' + c.symbol + '</div>' +
-                '<div class="text-xs text-gray-500">' + c.name + '</div>' +
-                '</div>' +
-                '<div class="ml-auto text-right">' +
-                '<div id="tab-price-' + c.id + '" class="font-mono text-sm">--</div>' +
-                '<div id="tab-change-' + c.id + '" class="text-xs text-gray-400">--%</div>' +
-                '</div>' +
-                '</div>';
-        }
-        setHtml('cryptoTabs', html);
-    }
-
-    function renderPredictionCards() {
-        const preds = state.predictions[state.currentCrypto] || {};
-        let html = '';
-        
-        for (let i = 0; i < CONFIG.intervals.length; i++) {
-            const interval = CONFIG.intervals[i];
-            const pred = preds[interval.key];
-            const isActive = pred && pred.status === 'ACTIVE';
-            const isCurrent = i === state.currentInterval;
-            
-            let progress = 0;
-            let timeLeft = '';
-            
-            if (pred && isActive) {
-                const elapsed = Date.now() - pred.createdAt;
-                const total = pred.expiresAt - pred.createdAt;
-                progress = Math.min(100, (elapsed / total) * 100);
-                timeLeft = formatTimeLeft(pred.expiresAt - Date.now());
-            }
-            
-            const dirClass = pred?.direction === 'LONG' ? 'text-green-400' : 'text-red-400';
-            
-            html += '<div class="prediction-card glass-panel p-4 ' + (isCurrent ? 'active' : '') + ' ' + (isActive ? 'locked' : '') + '" onclick="App.selectInterval(' + i + ')">' +
-                '<div class="flex items-center justify-between mb-2">' +
-                '<span class="title-font text-xs text-gray-400">' + interval.label + '</span>' +
-                (isActive ? '<span class="text-xs">🔒</span>' : '') +
-                '</div>' +
-                '<div class="title-font text-lg font-bold">' + (pred ? formatPrice(pred.targetPrice) : '--') + '</div>' +
-                '<div class="text-xs mb-1 ' + dirClass + '">' + (pred ? pred.direction + ' (' + pred.confidence + '%)' : '--') + '</div>' +
-                '<div class="text-xs text-gray-500">' + (isActive ? timeLeft : 'Waiting...') + '</div>' +
-                '<div class="progress-bar"><div class="progress-fill" style="width:' + progress + '%"></div></div>' +
-                '</div>';
-        }
-        
-        setHtml('predictionCards', html);
-    }
-
-    function renderParamHeatmap() {
-        const indicators = state.indicators[state.currentCrypto];
-        if (!indicators) return;
-        
-        const names = {
-            rsi: ['RSI', '📊'],
-            macd: ['MACD', '📈'],
-            bollinger: ['BB', '📉'],
-            momentum: ['MOM', '🚀'],
-            orderbook: ['ORDERS', '📕'],
-            funding: ['FUND', '💰'],
-            fearGreed: ['F&G', '😱']
-        };
-        
-        let html = '';
-        for (const key in indicators) {
-            const val = indicators[key];
-            const info = names[key] || [key, '❓'];
-            const cls = val > 0.1 ? 'bullish' : val < -0.1 ? 'bearish' : 'neutral';
-            const colorClass = val >= 0 ? 'text-green-400' : 'text-red-400';
-            
-            html += '<div class="param-block ' + cls + '">' +
-                '<div class="flex items-center justify-between mb-1">' +
-                '<span class="text-lg">' + info[1] + '</span>' +
-                '<span class="text-xs font-mono ' + colorClass + '">' + (val >= 0 ? '+' : '') + Math.round(val * 100) + '%</span>' +
-                '</div>' +
-                '<div class="text-xs text-gray-400">' + info[0] + '</div>' +
-                '</div>';
-        }
-        
-        setHtml('paramHeatmap', html);
-    }
-
-    function renderTradeHistory() {
-        if (state.trades.length === 0) {
-            setHtml('tradeHistory', '<div class="text-center text-gray-500 py-8">Waiting for predictions to complete...</div>');
-            return;
-        }
-        
-        let html = '';
-        const trades = state.trades.slice(0, 20);
-        
-        for (let i = 0; i < trades.length; i++) {
-            const t = trades[i];
-            const crypto = CONFIG.cryptos.find(function(c) { return c.id === t.symbol; });
-            const accClass = t.accuracy >= 60 ? 'high' : t.accuracy >= 40 ? 'medium' : 'low';
-            const plClass = t.pl >= 0 ? 'text-green-400' : 'text-red-400';
-            const dirClass = t.direction === 'LONG' ? 'long' : 'short';
-            const statusClass = 'status-' + t.status.toLowerCase();
-            
-            html += '<div class="trade-row">' +
-                '<div class="text-gray-400">' + new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</div>' +
-                '<div style="color:' + (crypto?.color || '#fff') + '">' + (crypto?.symbol || t.symbol) + '</div>' +
-                '<div><span class="direction-badge ' + dirClass + '">' + t.direction + '</span></div>' +
-                '<div class="text-gray-400">' + t.intervalLabel + '</div>' +
-                '<div class="font-mono text-xs">' + formatPrice(t.entryPrice) + ' → ' + formatPrice(t.exitPrice) + '</div>' +
-                '<div class="font-mono text-xs text-gray-400">' + formatPrice(t.targetPrice) + '</div>' +
-                '<div><span class="accuracy-badge ' + accClass + '">' + (t.accuracy?.toFixed(0) || 0) + '%</span></div>' +
-                '<div class="font-mono font-bold ' + plClass + '">' + (t.pl >= 0 ? '+' : '') + '$' + (t.pl?.toFixed(2) || '0.00') + '</div>' +
-                '<div class="' + statusClass + '">' + t.status + '</div>' +
-                '</div>';
-        }
-        
-        setHtml('tradeHistory', html);
+        renderPredictionCards();
     }
 
     // ==========================================
     // CHART
     // ==========================================
     function initChart() {
-        const canvas = $('priceChart');
+        var canvas = getEl('priceChart');
         if (!canvas) return;
-        
-        const ctx = canvas.getContext('2d');
-        
-        state.chart = new Chart(ctx, {
+
+        state.chartInstance = new Chart(canvas.getContext('2d'), {
             type: 'line',
             data: {
                 labels: [],
@@ -924,7 +1050,7 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: { duration: 0 },
+                animation: false,
                 plugins: { legend: { display: false } },
                 scales: {
                     x: {
@@ -936,7 +1062,7 @@
                         ticks: {
                             color: 'rgba(255,255,255,0.5)',
                             font: { size: 10 },
-                            callback: function(v) { return formatPrice(v); }
+                            callback: function(v) { return fmtPrice(v); }
                         }
                     }
                 }
@@ -945,194 +1071,287 @@
     }
 
     function updateChart() {
-        if (!state.chart) return;
-        
-        const klines = state.klines[state.currentCrypto];
+        if (!state.chartInstance) return;
+
+        var klines = state.klinesData[state.activeCrypto];
         if (!klines || klines.length === 0) return;
-        
-        const limits = { '1h': 60, '4h': 48, '1d': 96 };
-        const limit = limits[state.chartRange] || 96;
-        
-        const data = klines.slice(-limit);
-        const labels = [];
-        const prices = [];
-        
-        for (let i = 0; i < data.length; i++) {
-            labels.push(new Date(data[i].time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+
+        var limits = { '1h': 60, '4h': 48, '1d': 96 };
+        var limit = limits[state.chartRange] || 96;
+
+        var data = klines.slice(-limit);
+        var labels = [];
+        var prices = [];
+
+        for (var i = 0; i < data.length; i++) {
+            var d = new Date(data[i].time);
+            labels.push((d.getHours() < 10 ? '0' : '') + d.getHours() + ':' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes());
             prices.push(data[i].close);
         }
-        
+
         // Prediction point
-        const predData = new Array(prices.length).fill(null);
-        const preds = state.predictions[state.currentCrypto];
+        var predData = [];
+        for (var j = 0; j < prices.length; j++) predData.push(null);
+
+        var preds = state.predictionsData[state.activeCrypto];
         if (preds) {
-            const currentInterval = CONFIG.intervals[state.currentInterval];
-            const activePred = preds[currentInterval.key];
+            var currentInterval = CONFIG.intervals[state.activeInterval];
+            var activePred = preds[currentInterval.key];
             if (activePred && activePred.status === 'ACTIVE') {
                 predData[predData.length - 1] = activePred.targetPrice;
             }
         }
-        
-        state.chart.data.labels = labels;
-        state.chart.data.datasets[0].data = prices;
-        state.chart.data.datasets[1].data = predData;
-        state.chart.update('none');
+
+        state.chartInstance.data.labels = labels;
+        state.chartInstance.data.datasets[0].data = prices;
+        state.chartInstance.data.datasets[1].data = predData;
+        state.chartInstance.update('none');
     }
 
     // ==========================================
-    // DATA REFRESH
+    // REFRESH DATA
     // ==========================================
-    async function refreshData() {
-        console.log('🔄 Refreshing data...');
-        await calculateAllIndicators(state.currentCrypto);
-        updateCPSDisplay();
-        renderParamHeatmap();
+    function doRefresh() {
+        var symbol = state.activeCrypto;
+
+        loadOrderbook(symbol).then(function(imbalance) {
+            if (state.indicatorsData[symbol]) {
+                state.indicatorsData[symbol].orderbook = imbalance;
+            }
+        });
+
+        loadOpenInterest(symbol).then(function(oi) {
+            state.oiData[symbol] = oi;
+        });
+
+        var indicators = computeIndicators(symbol);
+        if (indicators) {
+            state.indicatorsData[symbol] = indicators;
+            updateCPSGauge();
+            renderIndicatorsHeatmap();
+        }
+
         updateChart();
     }
 
     // ==========================================
     // PUBLIC API
     // ==========================================
-    async function selectCrypto(symbol) {
-        state.currentCrypto = symbol;
+    function selectCrypto(symbol) {
+        state.activeCrypto = symbol;
         renderCryptoTabs();
-        
+
+        var intervalBybit = CONFIG.intervals[state.activeInterval].bybit;
+
         // Load klines if needed
-        if (!state.klines[symbol] || state.klines[symbol].length === 0) {
-            const interval = CONFIG.intervals[state.currentInterval].bybit;
-            state.klines[symbol] = await fetchKlines(symbol, interval);
+        if (!state.klinesData[symbol] || state.klinesData[symbol].length === 0) {
+            loadKlinesData(symbol, intervalBybit).then(function(klines) {
+                state.klinesData[symbol] = klines;
+
+                var indicators = computeIndicators(symbol);
+                if (indicators) {
+                    state.indicatorsData[symbol] = indicators;
+                }
+
+                generatePredictions(symbol);
+                updateMainPrice();
+                updateCPSGauge();
+                renderIndicatorsHeatmap();
+                renderPredictionCards();
+                updateChart();
+            });
+        } else {
+            var indicators = computeIndicators(symbol);
+            if (indicators) {
+                state.indicatorsData[symbol] = indicators;
+            }
+
+            generatePredictions(symbol);
+            updateMainPrice();
+            updateCPSGauge();
+            renderIndicatorsHeatmap();
+            renderPredictionCards();
+            updateChart();
         }
-        
-        await calculateAllIndicators(symbol);
-        generatePredictions(symbol);
-        
-        updatePriceDisplay();
-        updateCPSDisplay();
-        renderParamHeatmap();
-        renderPredictionCards();
-        updateChart();
+
+        // Load additional data
+        loadOpenInterest(symbol).then(function(oi) {
+            state.oiData[symbol] = oi;
+            updateMainPrice();
+        });
+
+        loadOrderbook(symbol).then(function(imbalance) {
+            if (state.indicatorsData[symbol]) {
+                state.indicatorsData[symbol].orderbook = imbalance;
+                renderIndicatorsHeatmap();
+            }
+        });
     }
 
-    async function selectInterval(idx) {
-        state.currentInterval = idx;
+    function selectInterval(idx) {
+        state.activeInterval = idx;
         state.countdown = CONFIG.intervals[idx].seconds;
-        setText('activeInterval', CONFIG.intervals[idx].label + ' INTERVAL');
-        
-        const interval = CONFIG.intervals[idx].bybit;
-        state.klines[state.currentCrypto] = await fetchKlines(state.currentCrypto, interval);
-        
-        await calculateAllIndicators(state.currentCrypto);
-        renderPredictionCards();
-        updateChart();
+        safeSetText('activeInterval', CONFIG.intervals[idx].label + ' INTERVAL');
+
+        var symbol = state.activeCrypto;
+        var intervalBybit = CONFIG.intervals[idx].bybit;
+
+        loadKlinesData(symbol, intervalBybit).then(function(klines) {
+            state.klinesData[symbol] = klines;
+
+            var indicators = computeIndicators(symbol);
+            if (indicators) {
+                state.indicatorsData[symbol] = indicators;
+            }
+
+            renderPredictionCards();
+            updateChart();
+        });
     }
 
     function setChartRange(range) {
         state.chartRange = range;
-        
-        const buttons = document.querySelectorAll('.chart-range-btn');
-        for (let i = 0; i < buttons.length; i++) {
-            const btn = buttons[i];
+
+        var buttons = document.querySelectorAll('.chart-range-btn');
+        for (var i = 0; i < buttons.length; i++) {
+            var btn = buttons[i];
             if (btn.dataset.range === range) {
                 btn.classList.add('active');
             } else {
                 btn.classList.remove('active');
             }
         }
-        
+
         updateChart();
     }
 
     // ==========================================
     // INITIALIZATION
     // ==========================================
-    async function init() {
-        console.log('🚀 CryptoOracle Pro starting...');
-        
+    function init() {
+        console.log('Starting CryptoOracle Pro...');
+
+        // Инициализация структуры данных
+        initPriceData();
+
+        // Рендер статических элементов
         renderCryptoTabs();
         renderPredictionCards();
         initChart();
-        
-        const loadingStatus = $('loadingStatus');
-        
-        try {
-            // Load all crypto data
-            for (let i = 0; i < CONFIG.cryptos.length; i++) {
-                const crypto = CONFIG.cryptos[i];
-                if (loadingStatus) loadingStatus.textContent = 'Loading ' + crypto.name + '...';
-                
-                // Fetch ticker
-                const ticker = await fetchTicker(crypto.id);
-                if (ticker) {
-                    state.prices[crypto.id] = ticker;
-                    updateTabPrice(crypto.id);
-                }
-                
-                // Fetch klines for current crypto
-                if (crypto.id === state.currentCrypto) {
-                    const interval = CONFIG.intervals[state.currentInterval].bybit;
-                    state.klines[crypto.id] = await fetchKlines(crypto.id, interval);
-                }
+
+        var loadingStatus = getEl('loadingStatus');
+
+        // Загрузка данных последовательно
+        var loadPromises = [];
+
+        for (var i = 0; i < CONFIG.cryptos.length; i++) {
+            (function(crypto) {
+                var promise = loadTickerData(crypto.id).then(function(data) {
+                    if (data) {
+                        state.priceData[crypto.id] = {
+                            price: data.price,
+                            change24h: data.change24h,
+                            high24h: data.high24h,
+                            low24h: data.low24h,
+                            volume24h: data.volume24h,
+                            fundingRate: data.fundingRate,
+                            isLoaded: true
+                        };
+                        updateTabPrice(crypto.id);
+                    }
+                    return true;
+                });
+                loadPromises.push(promise);
+            })(CONFIG.cryptos[i]);
+        }
+
+        // Load initial klines for active crypto
+        var initialKlinesPromise = loadKlinesData(state.activeCrypto, CONFIG.intervals[0].bybit)
+            .then(function(klines) {
+                state.klinesData[state.activeCrypto] = klines;
+                return true;
+            });
+        loadPromises.push(initialKlinesPromise);
+
+        // Fear & Greed
+        var fgPromise = loadFearGreed().then(function(fg) {
+            state.fgData = fg;
+            updateFearGreedGauge();
+            return true;
+        });
+        loadPromises.push(fgPromise);
+
+        // Wait for all data
+        Promise.all(loadPromises).then(function() {
+            if (loadingStatus) loadingStatus.textContent = 'Calculating...';
+
+            // Compute indicators
+            var indicators = computeIndicators(state.activeCrypto);
+            if (indicators) {
+                state.indicatorsData[state.activeCrypto] = indicators;
             }
-            
-            // Fear & Greed
-            if (loadingStatus) loadingStatus.textContent = 'Loading market sentiment...';
-            state.fearGreed = await fetchFearGreed();
-            updateFearGreedDisplay();
-            
-            // Calculate indicators
-            if (loadingStatus) loadingStatus.textContent = 'Analyzing market...';
-            await calculateAllIndicators(state.currentCrypto);
-            
+
             // Generate predictions
-            if (loadingStatus) loadingStatus.textContent = 'Generating predictions...';
-            generatePredictions(state.currentCrypto);
-            
-            // Update all displays
-            updatePriceDisplay();
-            updateCPSDisplay();
-            renderParamHeatmap();
+            generatePredictions(state.activeCrypto);
+
+            // Load orderbook
+            return loadOrderbook(state.activeCrypto);
+        }).then(function(imbalance) {
+            if (state.indicatorsData[state.activeCrypto]) {
+                state.indicatorsData[state.activeCrypto].orderbook = imbalance;
+            }
+
+            return loadOpenInterest(state.activeCrypto);
+        }).then(function(oi) {
+            state.oiData[state.activeCrypto] = oi;
+
+            // Update all UI
+            updateMainPrice();
+            updateCPSGauge();
+            renderIndicatorsHeatmap();
             renderPredictionCards();
             updateChart();
             updateStatsDisplay();
-            
-            // Connect WebSocket
-            if (loadingStatus) loadingStatus.textContent = 'Connecting to live feed...';
-            connectWebSocket();
-            
-            // Hide loading
-            const overlay = $('loadingOverlay');
+
+            // Start WebSocket
+            if (loadingStatus) loadingStatus.textContent = 'Connecting...';
+            startWebSocket();
+
+            // Hide loading overlay
+            var overlay = getEl('loadingOverlay');
             if (overlay) overlay.classList.add('hidden');
-            
+
             state.initialized = true;
-            
+            console.log('CryptoOracle Pro ready!');
+
             // Start timers
             setInterval(updateTimeDisplay, 1000);
             setInterval(updateCountdownDisplay, 1000);
             setInterval(checkExpiredPredictions, 1000);
             setInterval(renderPredictionCards, 5000);
-            
-            // Periodic data refresh
-            setInterval(async function() {
-                state.fearGreed = await fetchFearGreed();
-                updateFearGreedDisplay();
+
+            // Periodic refresh
+            setInterval(function() {
+                loadFearGreed().then(function(fg) {
+                    state.fgData = fg;
+                    updateFearGreedGauge();
+                });
             }, 300000);
-            
-            setInterval(refreshData, 30000);
-            
-            console.log('✅ CryptoOracle Pro ready!');
-            
-        } catch (error) {
-            console.error('❌ Initialization failed:', error);
-            
-            const overlay = $('loadingOverlay');
+
+            setInterval(doRefresh, 30000);
+
+        }).catch(function(err) {
+            console.error('Init error:', err);
+
+            var overlay = getEl('loadingOverlay');
             if (overlay) {
                 overlay.innerHTML = '<div class="loading-content">' +
                     '<div class="title-font text-xl text-red-400 mb-4">Connection Error</div>' +
-                    '<div class="text-gray-400 mb-4">' + error.message + '</div>' +
+                    '<div class="text-gray-400 mb-4">' + (err.message || 'Unknown error') + '</div>' +
                     '<button onclick="location.reload()" class="px-6 py-2 bg-purple-600 rounded-lg hover:bg-purple-700">Retry</button>' +
                     '</div>';
             }
-        }
+        });
     }
 
     // Start on DOM ready
@@ -1142,7 +1361,7 @@
         init();
     }
 
-    // Expose public API
+    // Export public API
     window.App = {
         selectCrypto: selectCrypto,
         selectInterval: selectInterval,
