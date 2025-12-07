@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CryptoOracle Pro - AI Prediction Engine</title>
+    <title>CryptoOracle Pro - Stable Real-Time</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -25,14 +25,14 @@
                     <h1 class="title-font text-2xl font-bold bg-gradient-to-r from-green-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
                         CRYPTOORACLE PRO
                     </h1>
-                    <p class="text-xs text-gray-400">Bybit Real-Time • $100 Investment Tracker</p>
+                    <p class="text-xs text-gray-400">Bybit WebSocket • No-Flicker Engine</p>
                 </div>
             </div>
             
             <div class="flex items-center gap-4 flex-wrap">
                 <div id="wsStatus" class="connection-status connecting">
                     <div class="status-dot"></div>
-                    <span>Connecting...</span>
+                    <span id="wsStatusText">Connecting...</span>
                 </div>
 
                 <div class="glass-panel px-4 py-2 flex items-center gap-3">
@@ -43,12 +43,12 @@
                 
                 <div class="glass-panel px-4 py-2">
                     <div class="text-xs text-gray-400">Win Rate</div>
-                    <div id="winRate" class="title-font text-xl text-green-400">0%</div>
+                    <div id="winRate" class="title-font text-xl text-green-400">0.0%</div>
                 </div>
                 
                 <div class="glass-panel px-4 py-2">
-                    <div class="text-xs text-gray-400">Total Trades</div>
-                    <div id="totalTrades" class="title-font text-xl text-purple-400">0</div>
+                    <div class="text-xs text-gray-400">P/L</div>
+                    <div id="totalPL" class="title-font text-xl text-gray-400">$0.00</div>
                 </div>
             </div>
         </div>
@@ -56,7 +56,9 @@
 
     <!-- Crypto Tabs -->
     <nav class="relative z-10 p-4">
-        <div class="max-w-7xl mx-auto flex gap-3 overflow-x-auto pb-2" id="cryptoTabs"></div>
+        <div class="max-w-7xl mx-auto flex gap-3 overflow-x-auto pb-2" id="cryptoTabs">
+            <!-- Tabs генерируются один раз в JS -->
+        </div>
     </nav>
 
     <!-- Main Dashboard -->
@@ -85,11 +87,6 @@
                             <div id="cpsLabel" class="text-sm text-gray-400">NEUTRAL</div>
                         </div>
                     </div>
-                    <div class="flex justify-between w-full text-xs text-gray-500">
-                        <span>STRONG SELL</span>
-                        <span>NEUTRAL</span>
-                        <span>STRONG BUY</span>
-                    </div>
                 </div>
             </div>
 
@@ -97,11 +94,11 @@
             <div class="glass-panel p-6 col-span-1">
                 <div class="flex items-center justify-between mb-2">
                     <h3 class="title-font text-sm text-gray-400">LIVE PRICE</h3>
-                    <span id="fundingRate" class="funding-rate neutral">Funding: 0%</span>
+                    <span id="fundingRate" class="funding-rate neutral">Fund: 0%</span>
                 </div>
                 <div id="livePrice" class="title-font text-4xl font-bold text-white mb-2">Loading...</div>
                 <div class="flex items-center gap-2">
-                    <span id="priceChange" class="text-lg text-gray-400">0%</span>
+                    <span id="priceChange" class="text-lg text-gray-400">0.00%</span>
                     <span class="text-xs text-gray-500">24H</span>
                 </div>
                 <div class="mt-4 grid grid-cols-2 gap-2 text-xs">
@@ -114,12 +111,8 @@
                         <div id="low24h" class="text-red-400">--</div>
                     </div>
                     <div>
-                        <div class="text-gray-500">24H Volume</div>
+                        <div class="text-gray-500">Volume</div>
                         <div id="volume24h" class="text-purple-400">--</div>
-                    </div>
-                    <div>
-                        <div class="text-gray-500">Open Interest</div>
-                        <div id="openInterest" class="text-blue-400">--</div>
                     </div>
                 </div>
             </div>
@@ -134,19 +127,18 @@
                             <circle id="countdownRing" class="countdown-ring" cx="50" cy="50" r="45" fill="none" stroke="url(#gaugeGrad)" stroke-width="6" stroke-linecap="round"/>
                         </svg>
                         <div class="countdown-text">
-                            <span id="countdownText" class="title-font text-2xl">01:00</span>
+                            <span id="countdownText" class="title-font text-2xl">00:00</span>
                         </div>
                     </div>
                 </div>
                 <div class="text-center">
                     <div id="activeInterval" class="text-sm text-purple-400">1 MIN INTERVAL</div>
-                    <div class="text-xs text-gray-500 mt-1">Predictions locked until expiry</div>
                 </div>
             </div>
 
             <!-- Fear & Greed Index -->
             <div class="glass-panel p-6 col-span-1">
-                <h3 class="title-font text-sm text-gray-400 mb-4">FEAR & GREED INDEX</h3>
+                <h3 class="title-font text-sm text-gray-400 mb-4">FEAR & GREED</h3>
                 <div class="flex items-center justify-center">
                     <div class="fg-gauge">
                         <svg viewBox="0 0 100 100" class="w-full h-full">
@@ -163,39 +155,29 @@
         </div>
 
         <!-- Prediction Cards Row -->
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4" id="predictionCards"></div>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4" id="predictionCards">
+            <!-- Cards генерируются один раз -->
+        </div>
 
         <!-- Main Chart Area -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-            <!-- Price Chart -->
             <div class="glass-panel p-6 col-span-2 relative overflow-hidden">
-                <div class="scan-line"></div>
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="title-font text-sm text-gray-400">PRICE CHART</h3>
                     <div class="flex gap-2">
-                        <button onclick="App.setChartRange('1h')" class="chart-range-btn" data-range="1h">1H</button>
-                        <button onclick="App.setChartRange('4h')" class="chart-range-btn" data-range="4h">4H</button>
-                        <button onclick="App.setChartRange('1d')" class="chart-range-btn active" data-range="1d">1D</button>
+                        <button onclick="App.setRange('1h')" class="chart-range-btn" id="btn-1h">1H</button>
+                        <button onclick="App.setRange('4h')" class="chart-range-btn" id="btn-4h">4H</button>
+                        <button onclick="App.setRange('1d')" class="chart-range-btn active" id="btn-1d">1D</button>
                     </div>
                 </div>
-                <div class="chart-container">
+                <div class="chart-container" style="height: 300px;">
                     <canvas id="priceChart"></canvas>
-                </div>
-                <div class="flex items-center gap-6 mt-4 text-xs">
-                    <div class="flex items-center gap-2">
-                        <div class="w-3 h-3 rounded-full bg-blue-400"></div>
-                        <span>Actual Price</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div class="w-3 h-3 rounded-full bg-green-400"></div>
-                        <span>Predicted Target</span>
-                    </div>
                 </div>
             </div>
 
             <!-- Parameters Heatmap -->
             <div class="glass-panel p-6 col-span-1">
-                <h3 class="title-font text-sm text-gray-400 mb-4">SIGNAL INDICATORS</h3>
+                <h3 class="title-font text-sm text-gray-400 mb-4">INDICATORS</h3>
                 <div id="paramHeatmap" class="grid grid-cols-2 gap-2"></div>
             </div>
         </div>
@@ -203,59 +185,12 @@
         <!-- Trade History -->
         <div class="glass-panel p-6 mb-4">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="title-font text-sm text-gray-400">TRADE HISTORY ($100 Investment)</h3>
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs text-gray-500">Total P/L:</span>
-                        <span id="totalPL" class="title-font text-green-400">$0.00</span>
-                    </div>
-                </div>
+                <h3 class="title-font text-sm text-gray-400">TRADE HISTORY ($100 Fixed)</h3>
             </div>
-            
-            <!-- Table Header -->
             <div class="trade-header">
-                <div>Time</div>
-                <div>Pair</div>
-                <div>Direction</div>
-                <div>Interval</div>
-                <div>Entry → Exit</div>
-                <div>Predicted</div>
-                <div>Accuracy</div>
-                <div>P/L</div>
-                <div>Status</div>
+                <div>Time</div><div>Pair</div><div>Dir</div><div>Entry</div><div>Exit</div><div>P/L</div><div>Result</div>
             </div>
-            
-            <div class="trade-history-container" id="tradeHistory">
-                <div class="text-center text-gray-500 py-8">Waiting for predictions to complete...</div>
-            </div>
-        </div>
-
-        <!-- Stats Grid -->
-        <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
-            <div class="glass-panel p-4 text-center">
-                <div class="text-xs text-gray-500">Winning</div>
-                <div id="winningTrades" class="title-font text-2xl text-green-400">0</div>
-            </div>
-            <div class="glass-panel p-4 text-center">
-                <div class="text-xs text-gray-500">Losing</div>
-                <div id="losingTrades" class="title-font text-2xl text-red-400">0</div>
-            </div>
-            <div class="glass-panel p-4 text-center">
-                <div class="text-xs text-gray-500">Avg Win</div>
-                <div id="avgProfit" class="title-font text-2xl text-green-400">$0</div>
-            </div>
-            <div class="glass-panel p-4 text-center">
-                <div class="text-xs text-gray-500">Avg Loss</div>
-                <div id="avgLoss" class="title-font text-2xl text-red-400">$0</div>
-            </div>
-            <div class="glass-panel p-4 text-center">
-                <div class="text-xs text-gray-500">Best Trade</div>
-                <div id="bestTrade" class="title-font text-2xl text-green-400">$0</div>
-            </div>
-            <div class="glass-panel p-4 text-center">
-                <div class="text-xs text-gray-500">Worst Trade</div>
-                <div id="worstTrade" class="title-font text-2xl text-red-400">$0</div>
-            </div>
+            <div class="trade-history-container" id="tradeHistory"></div>
         </div>
     </main>
 
@@ -263,11 +198,8 @@
     <div id="loadingOverlay" class="loading-overlay">
         <div class="loading-content">
             <div class="loading-spinner"></div>
-            <div class="title-font text-xl text-white mb-2">INITIALIZING ORACLE</div>
-            <div id="loadingStatus" class="text-sm text-gray-400">Connecting to Bybit...</div>
-            <div class="loading-bar-container">
-                <div class="loading-bar"></div>
-            </div>
+            <div class="title-font text-xl text-white mb-2">INITIALIZING</div>
+            <div id="loadingStatus" class="text-sm text-gray-400">Connecting...</div>
         </div>
     </div>
 
