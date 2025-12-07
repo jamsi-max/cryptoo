@@ -3,203 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CryptoOracle Pro - Stable Real-Time</title>
+    <title>CryptoOracle Pro - 10-Param Analysis</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="cyber-grid"></div>
-    
+
     <!-- Header -->
     <header class="relative z-10 p-4 border-b border-white/10">
-        <div class="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
             <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-400 to-purple-600 flex items-center justify-center">
-                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                    </svg>
+                <div class="w-10 h-10 rounded bg-gradient-to-br from-green-400 to-purple-600 flex items-center justify-center">
+                    <span class="font-bold text-white text-xl">AI</span>
                 </div>
                 <div>
-                    <h1 class="title-font text-2xl font-bold bg-gradient-to-r from-green-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
-                        CRYPTOORACLE PRO
-                    </h1>
-                    <p class="text-xs text-gray-400">Bybit WebSocket • No-Flicker Engine</p>
+                    <h1 class="title-font text-xl font-bold text-white">CRYPTOORACLE PRO</h1>
+                    <div id="wsStatus" class="flex items-center gap-2 text-xs text-orange-400">
+                        <div class="w-2 h-2 rounded-full bg-current animate-pulse"></div>
+                        <span>Connecting AI...</span>
+                    </div>
                 </div>
             </div>
-            
-            <div class="flex items-center gap-4 flex-wrap">
-                <div id="wsStatus" class="connection-status connecting">
-                    <div class="status-dot"></div>
-                    <span id="wsStatusText">Connecting...</span>
-                </div>
-
-                <div class="glass-panel px-4 py-2 flex items-center gap-3">
-                    <div class="pulse-dot"></div>
-                    <span class="text-sm text-gray-300">LIVE</span>
-                    <span id="currentTime" class="title-font text-green-400">--:--:--</span>
-                </div>
-                
-                <div class="glass-panel px-4 py-2">
-                    <div class="text-xs text-gray-400">Win Rate</div>
-                    <div id="winRate" class="title-font text-xl text-green-400">0.0%</div>
-                </div>
-                
-                <div class="glass-panel px-4 py-2">
-                    <div class="text-xs text-gray-400">P/L</div>
-                    <div id="totalPL" class="title-font text-xl text-gray-400">$0.00</div>
+            <div class="flex gap-4">
+                <div class="glass-panel px-4 py-2 text-center">
+                    <div class="text-xs text-gray-400">Total P/L</div>
+                    <div id="totalPL" class="title-font text-green-400">$0.00</div>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Crypto Tabs -->
+    <!-- Tabs -->
     <nav class="relative z-10 p-4">
-        <div class="max-w-7xl mx-auto flex gap-3 overflow-x-auto pb-2" id="cryptoTabs">
-            <!-- Tabs генерируются один раз в JS -->
-        </div>
+        <div id="cryptoTabs" class="max-w-7xl mx-auto flex gap-3 overflow-x-auto pb-2"></div>
     </nav>
 
-    <!-- Main Dashboard -->
-    <main class="relative z-10 p-4 max-w-7xl mx-auto">
-        <!-- Top Row -->
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
-            <!-- CPS Gauge -->
-            <div class="glass-panel p-6 neon-glow-purple col-span-1">
-                <h3 class="title-font text-sm text-gray-400 mb-4">COMPOSITE PREDICTIVE SCORE</h3>
-                <div class="flex flex-col items-center">
-                    <div class="gauge-container mb-4">
-                        <svg class="gauge-bg" viewBox="0 0 200 120">
-                            <defs>
-                                <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                                    <stop offset="0%" style="stop-color:#ff3366"/>
-                                    <stop offset="50%" style="stop-color:#9945ff"/>
-                                    <stop offset="100%" style="stop-color:#00ff88"/>
-                                </linearGradient>
-                            </defs>
-                            <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGrad)" stroke-width="12" stroke-linecap="round"/>
-                            <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="20" stroke-linecap="round"/>
-                        </svg>
-                        <div id="gaugeNeedle" class="gauge-needle"></div>
-                        <div class="gauge-value-container">
-                            <div id="cpsValue" class="title-font text-4xl font-bold">0</div>
-                            <div id="cpsLabel" class="text-sm text-gray-400">NEUTRAL</div>
-                        </div>
-                    </div>
+    <!-- Main -->
+    <main class="relative z-10 p-4 max-w-7xl mx-auto space-y-4">
+        
+        <!-- Top Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="glass-panel p-6">
+                <div class="text-xs text-gray-400 mb-1">LIVE PRICE</div>
+                <div id="livePrice" class="title-font text-4xl font-bold text-white mb-2">--</div>
+                <div class="flex items-center gap-2 mb-4">
+                    <span id="priceChange" class="text-lg">--%</span>
+                </div>
+                <div class="grid grid-cols-2 gap-4 text-xs">
+                    <div><div class="text-gray-500">24h High</div><div id="high24h" class="text-white">--</div></div>
+                    <div><div class="text-gray-500">24h Low</div><div id="low24h" class="text-white">--</div></div>
                 </div>
             </div>
 
-            <!-- Live Price Panel -->
-            <div class="glass-panel p-6 col-span-1">
-                <div class="flex items-center justify-between mb-2">
-                    <h3 class="title-font text-sm text-gray-400">LIVE PRICE</h3>
-                    <span id="fundingRate" class="funding-rate neutral">Fund: 0%</span>
-                </div>
-                <div id="livePrice" class="title-font text-4xl font-bold text-white mb-2">Loading...</div>
-                <div class="flex items-center gap-2">
-                    <span id="priceChange" class="text-lg text-gray-400">0.00%</span>
-                    <span class="text-xs text-gray-500">24H</span>
-                </div>
-                <div class="mt-4 grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                        <div class="text-gray-500">24H High</div>
-                        <div id="high24h" class="text-green-400">--</div>
-                    </div>
-                    <div>
-                        <div class="text-gray-500">24H Low</div>
-                        <div id="low24h" class="text-red-400">--</div>
-                    </div>
-                    <div>
-                        <div class="text-gray-500">Volume</div>
-                        <div id="volume24h" class="text-purple-400">--</div>
-                    </div>
-                </div>
+            <div class="glass-panel p-6 flex flex-col items-center justify-center">
+                <div class="text-xs text-gray-400 mb-4">AI CONFIDENCE SCORE</div>
+                <div class="text-4xl font-bold mb-2" id="cpsValue">0</div>
+                <div class="text-sm px-3 py-1 rounded" id="cpsLabel">ANALYZING</div>
             </div>
 
-            <!-- Countdown Timer -->
-            <div class="glass-panel p-6 col-span-1">
-                <h3 class="title-font text-sm text-gray-400 mb-4">NEXT PREDICTION</h3>
-                <div class="flex items-center justify-center mb-4">
-                    <div class="countdown-wrapper">
-                        <svg class="countdown-svg" viewBox="0 0 100 100">
-                            <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="6"/>
-                            <circle id="countdownRing" class="countdown-ring" cx="50" cy="50" r="45" fill="none" stroke="url(#gaugeGrad)" stroke-width="6" stroke-linecap="round"/>
-                        </svg>
-                        <div class="countdown-text">
-                            <span id="countdownText" class="title-font text-2xl">00:00</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="text-center">
-                    <div id="activeInterval" class="text-sm text-purple-400">1 MIN INTERVAL</div>
-                </div>
-            </div>
-
-            <!-- Fear & Greed Index -->
-            <div class="glass-panel p-6 col-span-1">
-                <h3 class="title-font text-sm text-gray-400 mb-4">FEAR & GREED</h3>
-                <div class="flex items-center justify-center">
-                    <div class="fg-gauge">
-                        <svg viewBox="0 0 100 100" class="w-full h-full">
-                            <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8"/>
-                            <circle id="fgCircle" cx="50" cy="50" r="45" fill="none" stroke="#ff9500" stroke-width="8" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="141" transform="rotate(-90 50 50)"/>
-                        </svg>
-                        <div class="fg-value">
-                            <span id="fgValue" class="title-font text-3xl font-bold">50</span>
-                            <span id="fgLabel" class="text-xs text-gray-400">NEUTRAL</span>
-                        </div>
-                    </div>
-                </div>
+            <div class="glass-panel p-6 flex flex-col items-center justify-center">
+                <div class="text-xs text-gray-400 mb-4">MARKET SENTIMENT</div>
+                <div class="text-4xl font-bold text-white mb-2" id="fgValue">--</div>
+                <div class="text-sm text-gray-400" id="fgLabel">--</div>
             </div>
         </div>
 
-        <!-- Prediction Cards Row -->
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4" id="predictionCards">
-            <!-- Cards генерируются один раз -->
-        </div>
+        <!-- Predictions -->
+        <div id="predictionCards" class="grid grid-cols-2 md:grid-cols-5 gap-3"></div>
 
-        <!-- Main Chart Area -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-            <div class="glass-panel p-6 col-span-2 relative overflow-hidden">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="title-font text-sm text-gray-400">PRICE CHART</h3>
-                    <div class="flex gap-2">
-                        <button onclick="App.setRange('1h')" class="chart-range-btn" id="btn-1h">1H</button>
-                        <button onclick="App.setRange('4h')" class="chart-range-btn" id="btn-4h">4H</button>
-                        <button onclick="App.setRange('1d')" class="chart-range-btn active" id="btn-1d">1D</button>
-                    </div>
-                </div>
-                <div class="chart-container" style="height: 300px;">
+        <!-- Chart & 10-Param Heatmap -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div class="glass-panel p-4 col-span-2">
+                <div style="height: 340px;">
                     <canvas id="priceChart"></canvas>
                 </div>
             </div>
-
-            <!-- Parameters Heatmap -->
-            <div class="glass-panel p-6 col-span-1">
-                <h3 class="title-font text-sm text-gray-400 mb-4">INDICATORS</h3>
-                <div id="paramHeatmap" class="grid grid-cols-2 gap-2"></div>
+            
+            <!-- 10 Parameters Grid -->
+            <div class="glass-panel p-4">
+                <div class="text-xs text-gray-400 mb-4 flex justify-between">
+                    <span>MULTI-VECTOR ANALYSIS (10 PARAMS)</span>
+                    <span class="animate-pulse text-green-400">● LIVE</span>
+                </div>
+                <!-- Changed to 2 columns for better visibility of 10 items -->
+                <div id="paramHeatmap" class="grid grid-cols-2 gap-2">
+                    <!-- Injected by JS -->
+                </div>
             </div>
         </div>
 
         <!-- Trade History -->
-        <div class="glass-panel p-6 mb-4">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="title-font text-sm text-gray-400">TRADE HISTORY ($100 Fixed)</h3>
+        <div class="glass-panel p-4">
+            <div class="text-xs text-gray-400 mb-4">TRADE HISTORY</div>
+            <div class="grid grid-cols-7 text-xs text-gray-500 mb-2 border-b border-white/10 pb-2">
+                <div>Time</div><div>Pair</div><div>Dir</div><div>Entry</div><div>Exit</div><div>P/L</div><div>Status</div>
             </div>
-            <div class="trade-header">
-                <div>Time</div><div>Pair</div><div>Dir</div><div>Entry</div><div>Exit</div><div>P/L</div><div>Result</div>
-            </div>
-            <div class="trade-history-container" id="tradeHistory"></div>
+            <div id="tradeHistory" class="max-h-48 overflow-y-auto space-y-2"></div>
         </div>
     </main>
 
-    <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="loading-overlay">
-        <div class="loading-content">
-            <div class="loading-spinner"></div>
-            <div class="title-font text-xl text-white mb-2">INITIALIZING</div>
-            <div id="loadingStatus" class="text-sm text-gray-400">Connecting...</div>
+    <!-- Loading -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
+        <div class="text-center">
+            <div class="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <div class="text-white title-font">INITIALIZING AI MODELS</div>
+            <div class="text-xs text-gray-500 mt-2">Loading Neural Networks...</div>
         </div>
     </div>
 
