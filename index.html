@@ -6,6 +6,7 @@
     <title>CryptoOracle Pro - AI Analytics</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/technicalindicators/3.1.0/index.browser.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -87,7 +88,7 @@
                 <span>TIMEFRAME PREDICTIONS (AUTO-EXECUTE)</span>
                 <span class="text-purple-400" id="activeLeverageDisplay">20x LEV</span>
              </div>
-            <div id="predictionCards" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3"></div>
+             <div id="predictionCards" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3"></div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -100,7 +101,7 @@
             
             <div class="glass-panel p-4">
                 <div class="text-xs text-gray-400 mb-4 flex justify-between items-center">
-                    <span>MULTI-VECTOR ANALYSIS</span>
+                    <span>MULTI-VECTOR ANALYSIS (10 Factors)</span>
                     <span class="flex h-2 w-2 relative">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
@@ -113,8 +114,8 @@
 
         <div class="glass-panel p-4">
             <div class="flex justify-between items-center mb-4">
-                <div class="text-xs text-gray-400">ALGORITHMIC TRADE HISTORY</div>
-                <div class="text-xs text-gray-500">Auto-clears on reload</div>
+                <div class="text-xs text-gray-400">ALGORITHMIC TRADE HISTORY (Paper Trading)</div>
+                <div class="text-xs text-gray-500">Session Data</div>
             </div>
             <div class="grid grid-cols-7 text-xs text-gray-500 mb-2 border-b border-white/10 pb-2 font-mono uppercase">
                 <div>Time</div><div>Pair</div><div>Dir</div><div>Lev</div><div>Entry</div><div>Exit</div><div>P/L</div>
