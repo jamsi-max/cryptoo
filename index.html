@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CryptoOracle Pro - 10-Param Analysis</title>
+    <title>CryptoOracle Pro - AI Analytics</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
@@ -12,105 +12,122 @@
 <body>
     <div class="cyber-grid"></div>
 
-    <!-- Header -->
     <header class="relative z-10 p-4 border-b border-white/10">
-        <div class="max-w-7xl mx-auto flex items-center justify-between">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-4">
-                <div class="w-10 h-10 rounded bg-gradient-to-br from-green-400 to-purple-600 flex items-center justify-center">
+                <div class="w-10 h-10 rounded bg-gradient-to-br from-green-400 to-purple-600 flex items-center justify-center shadow-[0_0_15px_rgba(0,255,136,0.5)]">
                     <span class="font-bold text-white text-xl">AI</span>
                 </div>
                 <div>
-                    <h1 class="title-font text-xl font-bold text-white">CRYPTOORACLE PRO</h1>
+                    <h1 class="title-font text-xl font-bold text-white tracking-wider">CRYPTOORACLE <span class="text-purple-400">PRO</span></h1>
                     <div id="wsStatus" class="flex items-center gap-2 text-xs text-orange-400">
                         <div class="w-2 h-2 rounded-full bg-current animate-pulse"></div>
-                        <span>Connecting AI...</span>
+                        <span>Initializing Neural Net...</span>
                     </div>
                 </div>
             </div>
-            <div class="flex gap-4">
-                <div class="glass-panel px-4 py-2 text-center">
+            <div class="flex gap-4 items-center">
+                <div class="glass-panel px-3 py-1 flex items-center gap-2">
+                    <span class="text-xs text-gray-400">LEVERAGE</span>
+                    <select id="leverageSelect" class="bg-transparent text-green-400 font-bold outline-none cursor-pointer title-font">
+                        <option value="1">1x</option>
+                        <option value="5">5x</option>
+                        <option value="10">10x</option>
+                        <option value="20" selected>20x</option>
+                        <option value="50">50x</option>
+                        <option value="100">100x</option>
+                    </select>
+                </div>
+                <div class="glass-panel px-4 py-2 text-center min-w-[100px]">
                     <div class="text-xs text-gray-400">Total P/L</div>
-                    <div id="totalPL" class="title-font text-green-400">$0.00</div>
+                    <div id="totalPL" class="title-font text-green-400 font-bold tracking-widest">$0.00</div>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Tabs -->
     <nav class="relative z-10 p-4">
-        <div id="cryptoTabs" class="max-w-7xl mx-auto flex gap-3 overflow-x-auto pb-2"></div>
+        <div id="cryptoTabs" class="max-w-7xl mx-auto flex gap-3 overflow-x-auto pb-2 scrollbar-hide"></div>
     </nav>
 
-    <!-- Main -->
     <main class="relative z-10 p-4 max-w-7xl mx-auto space-y-4">
         
-        <!-- Top Stats -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="glass-panel p-6">
-                <div class="text-xs text-gray-400 mb-1">LIVE PRICE</div>
+            <div class="glass-panel p-6 relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition text-6xl">💎</div>
+                <div class="text-xs text-gray-400 mb-1 tracking-widest">LIVE PRICE</div>
                 <div id="livePrice" class="title-font text-4xl font-bold text-white mb-2">--</div>
                 <div class="flex items-center gap-2 mb-4">
-                    <span id="priceChange" class="text-lg">--%</span>
+                    <span id="priceChange" class="text-lg font-mono">--%</span>
                 </div>
-                <div class="grid grid-cols-2 gap-4 text-xs">
-                    <div><div class="text-gray-500">24h High</div><div id="high24h" class="text-white">--</div></div>
-                    <div><div class="text-gray-500">24h Low</div><div id="low24h" class="text-white">--</div></div>
+                <div class="grid grid-cols-2 gap-4 text-xs border-t border-white/5 pt-3">
+                    <div><div class="text-gray-500">24h High</div><div id="high24h" class="text-white font-mono">--</div></div>
+                    <div><div class="text-gray-500">24h Low</div><div id="low24h" class="text-white font-mono">--</div></div>
                 </div>
             </div>
 
-            <div class="glass-panel p-6 flex flex-col items-center justify-center">
-                <div class="text-xs text-gray-400 mb-4">AI CONFIDENCE SCORE</div>
-                <div class="text-4xl font-bold mb-2" id="cpsValue">0</div>
-                <div class="text-sm px-3 py-1 rounded" id="cpsLabel">ANALYZING</div>
+            <div class="glass-panel p-6 flex flex-col items-center justify-center relative overflow-hidden">
+                <div class="text-xs text-gray-400 mb-4 tracking-widest">AI CONFIDENCE SCORE</div>
+                <div class="relative z-10 text-center">
+                    <div class="text-5xl font-bold mb-2 title-font" id="cpsValue">0</div>
+                    <div class="text-sm px-3 py-1 rounded inline-block" id="cpsLabel">ANALYZING</div>
+                </div>
+                <div id="aiPulse" class="absolute inset-0 bg-purple-500/5 rounded-full blur-xl transform scale-0 transition-transform duration-1000"></div>
             </div>
 
             <div class="glass-panel p-6 flex flex-col items-center justify-center">
-                <div class="text-xs text-gray-400 mb-4">MARKET SENTIMENT</div>
-                <div class="text-4xl font-bold text-white mb-2" id="fgValue">--</div>
-                <div class="text-sm text-gray-400" id="fgLabel">--</div>
+                <div class="text-xs text-gray-400 mb-4 tracking-widest">MARKET SENTIMENT</div>
+                <div class="text-4xl font-bold text-white mb-2 title-font" id="fgValue">--</div>
+                <div class="text-sm text-gray-400" id="fgLabel">FETCHING DATA...</div>
             </div>
         </div>
 
-        <!-- Predictions -->
-        <div id="predictionCards" class="grid grid-cols-2 md:grid-cols-5 gap-3"></div>
+        <div class="glass-panel p-4">
+             <div class="text-xs text-gray-400 mb-3 flex justify-between">
+                <span>TIMEFRAME PREDICTIONS (AUTO-EXECUTE)</span>
+                <span class="text-purple-400" id="activeLeverageDisplay">20x LEV</span>
+             </div>
+            <div id="predictionCards" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3"></div>
+        </div>
 
-        <!-- Chart & 10-Param Heatmap -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div class="glass-panel p-4 col-span-2">
-                <div style="height: 340px;">
+            <div class="glass-panel p-4 col-span-2 flex flex-col">
+                <div class="text-xs text-gray-400 mb-2">REAL-TIME PRICE ACTION</div>
+                <div class="flex-1 relative" style="min-height: 300px;">
                     <canvas id="priceChart"></canvas>
                 </div>
             </div>
             
-            <!-- 10 Parameters Grid -->
             <div class="glass-panel p-4">
-                <div class="text-xs text-gray-400 mb-4 flex justify-between">
-                    <span>MULTI-VECTOR ANALYSIS (10 PARAMS)</span>
-                    <span class="animate-pulse text-green-400">● LIVE</span>
+                <div class="text-xs text-gray-400 mb-4 flex justify-between items-center">
+                    <span>MULTI-VECTOR ANALYSIS</span>
+                    <span class="flex h-2 w-2 relative">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
                 </div>
-                <!-- Changed to 2 columns for better visibility of 10 items -->
                 <div id="paramHeatmap" class="grid grid-cols-2 gap-2">
-                    <!-- Injected by JS -->
-                </div>
+                    </div>
             </div>
         </div>
 
-        <!-- Trade History -->
         <div class="glass-panel p-4">
-            <div class="text-xs text-gray-400 mb-4">TRADE HISTORY</div>
-            <div class="grid grid-cols-7 text-xs text-gray-500 mb-2 border-b border-white/10 pb-2">
-                <div>Time</div><div>Pair</div><div>Dir</div><div>Entry</div><div>Exit</div><div>P/L</div><div>Status</div>
+            <div class="flex justify-between items-center mb-4">
+                <div class="text-xs text-gray-400">ALGORITHMIC TRADE HISTORY</div>
+                <div class="text-xs text-gray-500">Auto-clears on reload</div>
             </div>
-            <div id="tradeHistory" class="max-h-48 overflow-y-auto space-y-2"></div>
+            <div class="grid grid-cols-7 text-xs text-gray-500 mb-2 border-b border-white/10 pb-2 font-mono uppercase">
+                <div>Time</div><div>Pair</div><div>Dir</div><div>Lev</div><div>Entry</div><div>Exit</div><div>P/L</div>
+            </div>
+            <div id="tradeHistory" class="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar"></div>
         </div>
     </main>
 
-    <!-- Loading -->
-    <div id="loadingOverlay" class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
-        <div class="text-center">
-            <div class="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <div class="text-white title-font">INITIALIZING AI MODELS</div>
-            <div class="text-xs text-gray-500 mt-2">Loading Neural Networks...</div>
+    <div id="loadingOverlay" class="fixed inset-0 bg-[#0a0a1a] z-50 flex items-center justify-center">
+        <div class="text-center relative">
+            <div class="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mx-auto mb-6"></div>
+            <div class="text-2xl font-bold text-white title-font tracking-widest">SYSTEM BOOT</div>
+            <div class="text-xs text-green-400 mt-2 font-mono" id="loadingText">Establishing Neural Link...</div>
         </div>
     </div>
 
