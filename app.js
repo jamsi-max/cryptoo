@@ -337,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const normMACD = Math.max(-1, Math.min(1, currentMACD.histogram * 10 / lastPrice));
 
         // 3. Bollinger Bands (Real Math)
-        const bbVals = window.BB.calculate({period: 20, values: closes, stdDev: 2});
+        const bbVals = window.BollingerBands.calculate({period: 20, values: closes, stdDev: 2});
         const currBB = bbVals.slice(-1)[0] || {lower: lastPrice - 1, upper: lastPrice + 1};
         let normBB = 0;
         if (lastPrice < currBB.lower) normBB = 0.8;
