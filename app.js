@@ -22,9 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
             { label: '15M', seconds: 900, key: '15m', bybit: '15' },
             { label: '1H', seconds: 3600, key: '1h', bybit: '60' },
             { label: '4H', seconds: 14400, key: '4h', bybit: '240' },
-            { label: '6H', seconds: 21600, key: '6h', bybit: '360' },
-            { label: '1D', seconds: 86400, key: '1d', bybit: 'D' },
-            { label: '1W', seconds: 604800, key: '1w', bybit: 'W' }
+            { label: '6H', seconds: 21600, key: '6h', bybit: '360' }, // Added 6H
+            { label: '1D', seconds: 86400, key: '1d', bybit: 'D' },   // Added 1D
+            { label: '1W', seconds: 604800, key: '1w', bybit: 'W' }  // Added 1W
         ],
         params: [
             { key: 'rsi', label: 'RSI (14)', icon: '📊' },
@@ -92,7 +92,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateHeatmapUI() {
         const ind = state.indicators[state.activeCrypto];
-        if (!ind) return;
+        if (!ind) {
+             // If no indicators are ready, set heatmap to default 'Scanning'
+             CONFIG.params.forEach((p, i) => {
+                setText(`hm-val-${i}`, '--');
+                const block = el(`hm-block-${i}`);
+                if (block) block.className = `glass-panel p-2 flex flex-col justify-center border-l-2 border-gray-600`;
+            });
+            setText('cpsValue', 0);
+            setText('cpsLabel', 'ANALYZING');
+            setClass('cpsLabel', `text-sm px-3 py-1 rounded border border-gray-500`);
+            el('cpsValue').className = `text-4xl font-bold mb-2 text-white`;
+            return;
+        }
 
         let totalScore = 0;
         let count = 0;
@@ -107,10 +119,9 @@ document.addEventListener('DOMContentLoaded', () => {
             setText(`hm-val-${i}`, displayVal + '%');
             const block = el(`hm-block-${i}`);
             
-            let colorClass = 'border-l-2 border-gray-600';
+            let colorClass = 'border-l-2 border-purple-500 bg-purple-500/5';
             if (val > 0.2) colorClass = 'border-l-2 border-green-500 bg-green-500/10';
             else if (val < -0.2) colorClass = 'border-l-2 border-red-500 bg-red-500/10';
-            else colorClass = 'border-l-2 border-purple-500 bg-purple-500/5';
             
             if (block) block.className = `glass-panel p-2 flex flex-col justify-center ${colorClass}`;
         });
@@ -133,28 +144,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updatePredictionsUI() {
         const preds = state.predictions[state.activeCrypto];
-        if (!preds) return;
+        // Ensure the grid structure reflects the number of intervals
+        const cardsContainer = el('predictionCards');
+        if (cardsContainer.children.length !== CONFIG.intervals.length) {
+            initPredictionCards(); // Re-initialize if the DOM structure is wrong
+        }
         
         CONFIG.intervals.forEach((inv, i) => {
-            const pred = preds[inv.key];
+            const pred = preds ? preds[inv.key] : null;
+            const card = el(`card-${i}`);
+            
             if (pred && pred.status === 'ACTIVE') {
                 setText(`pt-${i}`, fmtPrice(pred.target));
                 setText(`pd-${i}`, pred.dir);
                 setClass(`pd-${i}`, `text-xs font-bold ${pred.dir==='LONG'?'text-green-400':'text-red-400'}`);
                 
                 const timeLeft = Math.max(0, (pred.end - Date.now())/1000);
-                setText(`ptime-${i}`, timeLeft > 60 ? (timeLeft/60).toFixed(0)+'m' : timeLeft.toFixed(0)+'s');
+                // Display time in appropriate format
+                if (timeLeft >= 86400) setText(`ptime-${i}`, (timeLeft/86400).toFixed(1)+'d');
+                else if (timeLeft >= 3600) setText(`ptime-${i}`, (timeLeft/3600).toFixed(1)+'h');
+                else if (timeLeft >= 60) setText(`ptime-${i}`, (timeLeft/60).toFixed(0)+'m');
+                else setText(`ptime-${i}`, timeLeft.toFixed(0)+'s');
                 
                 const total = pred.end - pred.start;
                 const elapsed = Date.now() - pred.start;
                 setStyle(`pprog-${i}`, 'width', `${Math.min(100, (elapsed/total)*100)}%`);
-                el(`card-${i}`).classList.add('locked');
+                if (card) card.classList.add('locked');
             } else {
                 setText(`pt-${i}`, '--');
-                setText(`pd-${i}`, '--');
+                setText(`pd-${i}`, 'READY');
+                setClass(`pd-${i}`, `text-xs font-bold text-gray-500`);
                 setText(`ptime-${i}`, 'Scanning...');
                 setStyle(`pprog-${i}`, 'width', '0%');
-                el(`card-${i}`).classList.remove('locked');
+                if (card) card.classList.remove('locked');
             }
         });
         
@@ -210,14 +232,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     volume: list.map(x => parseFloat(x[5])),
                 };
                 
-                calculateIndicators(symbol);
+                // CRITICAL FIX: Recalculate indicators and update UI immediately after successful fetch
+                calculateIndicators(symbol); 
                 updateChart();
+                if (symbol === state.activeCrypto) {
+                    updateHeatmapUI();
+                    updatePredictionsUI();
+                }
+            } else {
+                 console.error(`Error fetching Klines for ${symbol} at interval ${inv}:`, data.retMsg);
             }
-        } catch(e) { console.error("API Error:", e); }
+        } catch(e) { console.error("API Error during Klines fetch:", e); }
     }
 
     function calculateIndicators(symbol) {
         const data = state.klines[symbol];
+        // Ensure we have enough data (min 50 candles for complex indicators)
         if (!data || data.close.length < 50) return;
 
         const closes = data.close;
@@ -226,9 +256,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 1. RSI (Real Math)
         const rsiVals = window.RSI.calculate({values: closes, period: 14});
-        const currentRSI = rsiVals[rsiVals.length - 1];
+        const currentRSI = rsiVals.slice(-1)[0];
         // Normalize RSI (30 is buy, 70 is sell) -> -1 to 1
-        // 30 -> 1 (Buy), 70 -> -1 (Sell), 50 -> 0
         const normRSI = (50 - currentRSI) / 25; 
 
         // 2. MACD (Real Math)
@@ -240,18 +269,22 @@ document.addEventListener('DOMContentLoaded', () => {
             SimpleMAOscillator: false,
             SimpleMASignal: false
         });
-        const currentMACD = macdVals[macdVals.length - 1];
-        // Signal > Histogram usually indicates trend
-        const normMACD = currentMACD.histogram > 0 ? 0.6 : -0.6;
+        const currentMACD = macdVals.slice(-1)[0];
+        // Histogram value normalization
+        let normMACD = 0;
+        if(currentMACD) {
+            normMACD = Math.max(-1, Math.min(1, currentMACD.histogram * 10 / lastPrice));
+        }
 
         // 3. Bollinger Bands (Real Math)
         const bbVals = window.BollingerBands.calculate({period: 20, values: closes, stdDev: 2});
-        const currBB = bbVals[bbVals.length - 1];
-        // If price < lower band -> Buy (oversold)
-        // If price > upper band -> Sell (overbought)
+        const currBB = bbVals.slice(-1)[0];
         let normBB = 0;
-        if (lastPrice < currBB.lower) normBB = 0.8;
-        else if (lastPrice > currBB.upper) normBB = -0.8;
+        if (currBB) {
+            // If price < lower band -> Buy, If price > upper band -> Sell
+            if (lastPrice < currBB.lower) normBB = 0.8;
+            else if (lastPrice > currBB.upper) normBB = -0.8;
+        }
 
         // 4. Momentum (ROC)
         const prev10 = closes[closes.length - 10];
@@ -259,29 +292,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const normMom = Math.max(-1, Math.min(1, mom / lastPrice * 50));
 
         // 5. Volume Trend
-        // Compare recent avg volume to historical avg
         const volSMA = volumes.slice(-10).reduce((a,b)=>a+b)/10;
         const volLongSMA = volumes.slice(-50).reduce((a,b)=>a+b)/50;
-        const normVol = volSMA > volLongSMA ? 0.5 : -0.2; // High vol usually confirms trend
+        const normVol = volSMA > volLongSMA ? 0.5 : -0.2; 
 
         // 6. Orderbook Proxy (Price Action)
-        // If High - Close < Close - Low => Buying Pressure (Wick at bottom)
         const lastCandle = {h: data.high[data.high.length-1], l: data.low[data.low.length-1], c: lastPrice};
         const upperWick = lastCandle.h - lastCandle.c;
         const lowerWick = lastCandle.c - lastCandle.l;
         const normOB = lowerWick > upperWick ? 0.4 : -0.4;
 
         // 7. Funding (Derived from Trend)
-        // In strong up trends, funding is usually positive (longs pay shorts)
-        const normFund = normMom > 0.5 ? -0.2 : 0.2; // Contrarian indicator
+        const normFund = normMom > 0.5 ? -0.2 : 0.2; 
 
         // 8. Fear & Greed (External)
-        // 0 (Fear) -> Buy, 100 (Greed) -> Sell
         const normFG = (50 - state.fearGreedValue) / 50;
 
         // 9. Social Sentiment (Derived Algorithm)
-        // High Volatility + High Volume = High Social Engagement (Viral)
-        // If price is up AND volume is high = Positive Sentiment
         const volatility = (lastCandle.h - lastCandle.l) / lastPrice;
         let social = 0;
         if (volatility > 0.005 && normVol > 0) {
@@ -291,7 +318,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 10. News AI (Derived Algorithm)
-        // Large sudden spikes often indicate news
         let news = 0;
         const priceChange = (lastPrice - prev10) / prev10;
         if (Math.abs(priceChange) > 0.01) {
@@ -312,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
             news: news
         };
 
-        if (symbol === state.activeCrypto) updateHeatmapUI();
+        // Check predictions regardless of active tab
         checkPredictions(symbol, lastPrice);
     }
 
@@ -324,8 +350,8 @@ document.addEventListener('DOMContentLoaded', () => {
         CONFIG.intervals.forEach((inv, i) => {
             let pred = state.predictions[symbol][inv.key];
 
-            // 1. Create New Prediction if slot is empty
-            if (!pred) {
+            // 1. Create New Prediction if slot is empty AND indicators are ready
+            if (!pred && ind) {
                 let score = 0;
                 // Sum up weighted indicators
                 CONFIG.params.forEach(p => score += (ind[p.key] || 0));
@@ -333,8 +359,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Entry Threshold (Must be strong signal)
                 if (Math.abs(score) > 2.0) { 
                     const dir = score > 0 ? 'LONG' : 'SHORT';
-                    // Target calculation: proportional to timeframe
-                    const volatilityMultiplier = (inv.seconds / 60) * 0.0005; 
+                    // Target calculation: proportional to timeframe and score strength
+                    const volatilityMultiplier = (inv.seconds / 3600) * (Math.abs(score) / 1000); 
                     const target = currentPrice * (1 + (dir==='LONG' ? volatilityMultiplier : -volatilityMultiplier));
                     
                     pred = {
@@ -353,6 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 2. Check Expired Prediction
             if (pred && pred.status === 'ACTIVE' && now >= pred.end) {
                 const exitPrice = currentPrice;
+                
                 // P/L Math: (Exit - Entry) / Entry * Leverage * Investment
                 let pctChange = (exitPrice - pred.entry) / pred.entry;
                 if (pred.dir === 'SHORT') pctChange = -pctChange;
@@ -380,10 +407,31 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (symbol === state.activeCrypto) updatePredictionsUI();
     }
+    
+    // ==========================================
+    // 6. INITIALIZATION & DOM Setup
+    // ==========================================
+    
+    function initPredictionCards() {
+        const cardsContainer = el('predictionCards');
+        cardsContainer.innerHTML = CONFIG.intervals.map((inv, i) => `
+            <div id="card-${i}" class="prediction-card glass-panel p-3">
+                <div class="flex justify-between text-xs text-gray-400 mb-2"><span>${inv.label}</span></div>
+                <div id="pt-${i}" class="font-bold mb-1">--</div>
+                <div id="pd-${i}" class="text-xs">--</div>
+                <div class="h-1 bg-gray-700 mt-2 rounded overflow-hidden"><div id="pprog-${i}" class="h-full bg-purple-500" style="width:0%"></div></div>
+                <div class="text-xs text-gray-500 mt-1 text-right" id="ptime-${i}">Ready</div>
+            </div>
+        `).join('');
+        
+        document.querySelectorAll('.prediction-card').forEach((c, i) => c.addEventListener('click', () => {
+             document.querySelectorAll('.prediction-card').forEach(card => card.classList.remove('active'));
+             c.classList.add('active');
+            state.activeInterval = i;
+            fetchKlines(state.activeCrypto); // Load new data for selected interval
+        }));
+    }
 
-    // ==========================================
-    // 6. INITIALIZATION
-    // ==========================================
     function initDOM() {
         // Handle Leverage Change
         el('leverageSelect').addEventListener('change', (e) => {
@@ -400,35 +448,17 @@ document.addEventListener('DOMContentLoaded', () => {
         `).join('');
         
         document.querySelectorAll('.crypto-tab').forEach(t => t.addEventListener('click', () => {
-            // Remove active class from old
             document.querySelectorAll('.crypto-tab').forEach(tab => tab.classList.remove('active'));
-            // Add to new
             t.classList.add('active');
             
             state.activeCrypto = t.dataset.id;
             updateMainPrice(state.activeCrypto);
-            fetchKlines(state.activeCrypto);
+            fetchKlines(state.activeCrypto); // Load new data for selected crypto
             updateHeatmapUI();
             updatePredictionsUI();
         }));
-
-        // Cards Grid (Now handles dynamic number of intervals)
-        el('predictionCards').innerHTML = CONFIG.intervals.map((inv, i) => `
-            <div id="card-${i}" class="prediction-card glass-panel p-3">
-                <div class="flex justify-between text-xs text-gray-400 mb-2"><span>${inv.label}</span></div>
-                <div id="pt-${i}" class="font-bold mb-1">--</div>
-                <div id="pd-${i}" class="text-xs">--</div>
-                <div class="h-1 bg-gray-700 mt-2 rounded overflow-hidden"><div id="pprog-${i}" class="h-full bg-purple-500" style="width:0%"></div></div>
-                <div class="text-xs text-gray-500 mt-1 text-right" id="ptime-${i}">Ready</div>
-            </div>
-        `).join('');
         
-        document.querySelectorAll('.prediction-card').forEach((c, i) => c.addEventListener('click', () => {
-             document.querySelectorAll('.prediction-card').forEach(card => card.classList.remove('active'));
-             c.classList.add('active');
-            state.activeInterval = i;
-            fetchKlines(state.activeCrypto);
-        }));
+        initPredictionCards();
 
         // Heatmap Grid
         el('paramHeatmap').innerHTML = CONFIG.params.map((p, i) => `
@@ -455,7 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Set initial active
+        // Set initial active states
         document.querySelector(`[data-id="${state.activeCrypto}"]`).classList.add('active');
         el(`card-${state.activeInterval}`).classList.add('active');
     }
@@ -484,12 +514,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateTabPrice(symbol);
                 if (symbol === state.activeCrypto) {
                     updateMainPrice(symbol);
-                    // Check predictions on every price update
+                    // Check predictions on every price update (only works if indicators are calculated)
                     checkPredictions(symbol, p.price);
                 }
             }
         };
-        ws.onclose = () => setTimeout(initWS, 3000); // Auto Reconnect
+        ws.onclose = () => {
+            el('wsStatus').innerHTML = '<span class="text-red-400">● AI OFFLINE</span>';
+            setTimeout(initWS, 5000); // Auto Reconnect
+        }
+        ws.onerror = (e) => console.error("WS Error:", e);
     }
 
     // ==========================================
@@ -497,7 +531,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     initDOM();
     initWS();
-    CONFIG.cryptos.forEach(c => fetchKlines(c.id));
+    
+    // CRITICAL FIX: Trigger the initial Klines fetch for the active crypto/interval 
+    // to populate the heatmap and predictions immediately.
+    fetchKlines(state.activeCrypto);
     
     // Fetch Real External Fear & Greed Data
     fetch('https://api.alternative.me/fng/?limit=1')
@@ -507,6 +544,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.fearGreedValue = parseInt(d.data[0].value);
                 setText('fgValue', state.fearGreedValue);
                 setText('fgLabel', d.data[0].value_classification.toUpperCase());
+                // Recalculate indicators after F&G data is fetched
+                if (state.klines[state.activeCrypto]) {
+                    calculateIndicators(state.activeCrypto);
+                    updateHeatmapUI();
+                }
             }
         }).catch(e => console.log('F&G Error', e));
 
