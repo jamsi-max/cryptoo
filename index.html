@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoForecast Pro - Advanced Trading Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1a1a2e; }
+        ::-webkit-scrollbar-thumb { background: #4a4a6a; border-radius: 3px; }
+        .glow-green { box-shadow: 0 0 20px rgba(34, 197, 94, 0.3); }
+        .glow-red { box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
+        .glow-blue { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+        .glow-purple { box-shadow: 0 0 20px rgba(168, 85, 247, 0.4); }
+        .pulse-dot { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .gradient-bg { background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #0f0f1a 100%); }
+        .card-gradient { background: linear-gradient(145deg, #1e1e32 0%, #16162a 100%); }
+        .forecast-gradient { background: linear-gradient(145deg, #1a1a3e 0%, #12122a 100%); }
+        .indicator-bar { transition: width 0.5s ease-out; }
+        .prediction-card { border-left: 3px solid #a855f7; }
+        .countdown { font-variant-numeric: tabular-nums; }
+        @keyframes flash-green { 0%, 100% { background-color: transparent; } 50% { background-color: rgba(34, 197, 94, 0.3); } }
+        @keyframes flash-red { 0%, 100% { background-color: transparent; } 50% { background-color: rgba(239, 68, 68, 0.3); } }
+        .flash-win { animation: flash-green 0.5s ease-in-out 3; }
+        .flash-loss { animation: flash-red 0.5s ease-in-out 3; }
+        .direction-long { background: linear-gradient(135deg, #166534, #15803d); }
+        .direction-short { background: linear-gradient(135deg, #991b1b, #dc2626); }
+        .direction-neutral { background: linear-gradient(135deg, #854d0e, #ca8a04); }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen text-gray-100">
+    <div class="container mx-auto px-4 py-6 max-w-[1800px]">
+        <!-- Header -->
+        <header class="flex flex-col gap-4 mb-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3 shrink-0">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">CryptoForecast Pro</h1>
+                        <p class="text-xs text-gray-500">Advanced AI-Powered Trading Analytics</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 shrink-0">
+                    <div class="flex items-center gap-2 text-sm bg-gray-900/50 px-3 py-1.5 rounded-full border border-gray-800">
+                        <span class="pulse-dot w-2 h-2 bg-green-500 rounded-full"></span>
+                        <span class="text-gray-300 font-medium">Live Market</span>
+                    </div>
+                    <div id="lastUpdate" class="text-xs text-gray-500 font-mono hidden sm:block"></div>
+                </div>
+            </div>
+            <!-- Savings Portfolio Widget -->
+            <div id="headerWallet" class="w-full bg-gradient-to-r from-gray-900/90 via-purple-900/20 to-gray-900/90 border border-purple-700/30 rounded-xl p-3 shadow-lg">
+                <div class="flex w-full items-center justify-center text-sm text-gray-400">Loading Savings Portfolio...</div>
+            </div>
+        </header>
+
+        <!-- Crypto Cards -->
+        <div class="grid grid-cols-5 gap-3 mb-6" id="cryptoCards"></div>
+
+        <!-- Predictions Banner -->
+        <div class="forecast-gradient rounded-xl p-4 mb-6 border border-purple-900 glow-purple">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    <h2 class="text-lg font-bold text-purple-300">ACTIVE PREDICTIONS</h2>
+                </div>
+                <div class="text-sm text-gray-400">Current: <span id="currentPriceDisplay" class="text-white font-bold">--</span></div>
+            </div>
+            <div class="grid grid-cols-7 gap-3" id="predictionCards"></div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-12 gap-4">
+            <!-- Chart Column -->
+            <div class="col-span-12 lg:col-span-8">
+                <div class="card-gradient rounded-xl p-4 mb-4 border border-gray-800">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-lg font-semibold">Price & Forecast Chart</h2>
+                            <p class="text-xs text-gray-500">Scroll to zoom, drag to pan</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="flex gap-1" id="intervalBtns">
+                                <button data-interval="1m" class="px-3 py-1.5 text-xs rounded-lg bg-gray-700 hover:bg-blue-600 transition font-medium">1M</button>
+                                <button data-interval="5m" class="px-3 py-1.5 text-xs rounded-lg bg-gray-700 hover:bg-blue-600 transition font-medium">5M</button>
+                                <button data-interval="15m" class="px-3 py-1.5 text-xs rounded-lg bg-gray-700 hover:bg-blue-600 transition font-medium">15M</button>
+                                <button data-interval="1h" class="px-3 py-1.5 text-xs rounded-lg bg-blue-600 font-medium">1H</button>
+                                <button data-interval="6h" class="px-3 py-1.5 text-xs rounded-lg bg-gray-700 hover:bg-blue-600 transition font-medium">6H</button>
+                                <button data-interval="1d" class="px-3 py-1.5 text-xs rounded-lg bg-gray-700 hover:bg-blue-600 transition font-medium">1D</button>
+                                <button data-interval="1w" class="px-3 py-1.5 text-xs rounded-lg bg-gray-700 hover:bg-blue-600 transition font-medium">1W</button>
+                            </div>
+                            <button onclick="resetChartZoom()" class="px-3 py-1.5 text-xs rounded-lg bg-purple-600 hover:bg-purple-500 transition font-medium">Reset Zoom</button>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between mb-2 px-2">
+                        <div class="text-xs text-gray-400">Viewing: <span id="chartViewRange" class="text-blue-400 font-semibold">Last 7 days</span></div>
+                        <div class="text-xs text-gray-400">Selected: <span id="chartSelectedInterval" class="text-purple-400 font-semibold">1 Hour</span></div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 mb-3 px-2" id="indicatorToggles"></div>
+                    <div class="h-[450px] relative bg-gray-900/30 rounded-lg p-2">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                    <div class="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-gray-700">
+                        <div class="flex items-center gap-2"><div class="w-4 h-1 bg-blue-500 rounded"></div><span class="text-xs text-gray-400">Actual Price</span></div>
+                        <div class="flex items-center gap-2"><div class="w-4 h-1 bg-purple-500 rounded"></div><span class="text-xs text-gray-400">Historical Predictions</span></div>
+                        <div class="flex items-center gap-2"><div class="w-4 h-1 bg-green-500 rounded"></div><span class="text-xs text-gray-400">Future Forecast</span></div>
+                    </div>
+                </div>
+                <div class="card-gradient rounded-xl p-4 mb-4 border border-gray-800">
+                    <h2 class="text-lg font-semibold mb-4">Exchange Prices</h2>
+                    <div class="grid grid-cols-3 gap-4" id="exchangePrices"></div>
+                </div>
+                <div class="card-gradient rounded-xl p-4 border border-gray-800">
+                    <h2 class="text-lg font-semibold mb-4">Technical Indicators (10)</h2>
+                    <div class="grid grid-cols-5 gap-3" id="technicalIndicators"></div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="col-span-12 lg:col-span-4 space-y-4">
+                <div class="card-gradient rounded-xl p-4 border border-gray-800" id="masterIndicator">
+                    <h2 class="text-lg font-semibold mb-3">Master Signal</h2>
+                    <div class="text-center py-4">
+                        <div id="masterSignal" class="text-5xl font-bold mb-2">--</div>
+                        <div id="masterDirection" class="text-2xl font-semibold">LOADING...</div>
+                        <div id="masterConfidence" class="text-sm text-gray-400 mt-2">Confidence: --</div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="flex justify-between text-xs text-gray-400 mb-1"><span>Strong Sell</span><span>Strong Buy</span></div>
+                        <div class="h-3 bg-gradient-to-r from-red-600 via-yellow-500 to-green-600 rounded-full relative">
+                            <div id="masterPointer" class="absolute w-4 h-4 bg-white rounded-full -top-0.5 transform -translate-x-1/2 shadow-lg transition-all duration-500" style="left: 50%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-gradient rounded-xl p-4 border border-gray-800">
+                    <h2 class="text-lg font-semibold mb-3">Interval Timers</h2>
+                    <div class="grid grid-cols-7 gap-2" id="intervalTimers"></div>
+                </div>
+                <div class="card-gradient rounded-xl p-4 border border-gray-800">
+                    <h2 class="text-lg font-semibold mb-3">Active Positions</h2>
+                    <div class="space-y-2 max-h-64 overflow-y-auto" id="activePositions"></div>
+                </div>
+                <div class="card-gradient rounded-xl p-4 border border-gray-800">
+                    <h2 class="text-lg font-semibold mb-3">Sentiment Indicators (10)</h2>
+                    <div class="space-y-2" id="externalIndicators"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prediction Accuracy -->
+        <div class="card-gradient rounded-xl p-4 mt-4 border border-gray-800">
+            <h2 class="text-lg font-semibold mb-4">Prediction Accuracy Analysis</h2>
+            <div class="grid grid-cols-7 gap-3" id="predictionAccuracy"></div>
+        </div>
+
+        <!-- Trading History -->
+        <div class="card-gradient rounded-xl p-4 mt-4 border border-gray-800">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold">Trading History & Performance</h2>
+                <div id="overallProfit" class="text-lg font-bold"></div>
+            </div>
+            <div class="overflow-x-auto max-h-64 overflow-y-auto">
+                <table class="w-full text-sm">
+                    <thead class="sticky top-0 bg-gray-800">
+                        <tr class="text-gray-400 text-left">
+                            <th class="p-2">Time</th>
+                            <th class="p-2">Crypto</th>
+                            <th class="p-2">Interval</th>
+                            <th class="p-2">Direction</th>
+                            <th class="p-2">Leverage</th>
+                            <th class="p-2">Entry</th>
+                            <th class="p-2">Predicted</th>
+                            <th class="p-2">Actual</th>
+                            <th class="p-2">Error</th>
+                            <th class="p-2">P/L</th>
+                            <th class="p-2">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTable"></tbody>
+                </table>
+            </div>
+            <div class="mt-4 pt-4 border-t border-gray-700">
+                <h3 class="text-sm font-semibold mb-3">Performance by Interval</h3>
+                <div class="grid grid-cols-7 gap-2" id="intervalPerformance"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CRYPTOS = ['bitcoin', 'ethereum', 'binancecoin', 'ripple', 'solana'];
+        const CRYPTO_SYMBOLS = { bitcoin: 'BTC', ethereum: 'ETH', binancecoin: 'BNB', ripple: 'XRP', solana: 'SOL' };
+        const INTERVALS = ['1m', '5m', '15m', '1h', '6h', '1d', '1w'];
+        const INTERVAL_MS = { '1m': 60000, '5m': 300000, '15m': 900000, '1h': 3600000, '6h': 21600000, '1d': 86400000, '1w': 604800000 };
+        const INTERVAL_LABELS = { '1m': '1 Min', '5m': '5 Min', '15m': '15 Min', '1h': '1 Hour', '6h': '6 Hours', '1d': '1 Day', '1w': '1 Week' };
+        
+        const CHART_INDICATORS = [
+            { id: 'sma20', label: 'SMA 20', color: '#fbbf24' },
+            { id: 'sma50', label: 'SMA 50', color: '#f59e0b' },
+            { id: 'ema12', label: 'EMA 12', color: '#60a5fa' },
+            { id: 'ema26', label: 'EMA 26', color: '#3b82f6' },
+            { id: 'bb', label: 'Bollinger', color: '#ec4899' },
+            { id: 'vwap', label: 'VWAP', color: '#10b981' },
+            { id: 'rsi', label: 'RSI', color: '#8b5cf6' }
+        ];
+
+        // State
+        let state = {
+            selectedCrypto: 'bitcoin',
+            selectedInterval: '1h',
+            prices: {},
+            exchangePrices: {},
+            historicalData: {},
+            historicalPredictions: {},
+            technicalIndicators: {},
+            externalIndicators: {},
+            chartIndicators: {},
+            masterSignal: 50,
+            forecasts: {},
+            positions: {},
+            history: [],
+            totalProfit: 0,
+            intervalProfits: {},
+            predictionAccuracy: {},
+            compoundBalances: {}
+        };
+
+        // Initialize interval data
+        INTERVALS.forEach(interval => {
+            state.intervalProfits[interval] = { profit: 0, trades: 0, wins: 0 };
+            state.predictionAccuracy[interval] = { correct: 0, total: 0, avgError: 0, errors: [] };
+            state.forecasts[interval] = null;
+            state.positions[interval] = null;
+            state.compoundBalances[interval] = 100;
+        });
+
+        // Timing functions
+        function getIntervalStartTime(interval) {
+            const now = Date.now();
+            const ms = INTERVAL_MS[interval];
+            return Math.floor(now / ms) * ms;
+        }
+
+        function getIntervalEndTime(interval) {
+            return getIntervalStartTime(interval) + INTERVAL_MS[interval];
+        }
+
+        function getTimeRemaining(interval) {
+            return Math.max(0, getIntervalEndTime(interval) - Date.now());
+        }
+
+        // API Functions
+        async function fetchCoinGeckoPrices() {
+            try {
+                const ids = CRYPTOS.join(',');
+                const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`);
+                const data = await response.json();
+                CRYPTOS.forEach(crypto => {
+                    if (data[crypto]) {
+                        state.prices[crypto] = { price: data[crypto].usd, change: data[crypto].usd_24h_change || 0 };
+                    }
+                });
+            } catch (e) { console.log('CoinGecko error:', e); }
+        }
+
+        let binanceWs = null;
+        function connectBinanceWebSocket() {
+            const symbols = ['btcusdt', 'ethusdt', 'bnbusdt', 'xrpusdt', 'solusdt'];
+            const streams = symbols.map(s => `${s}@ticker`).join('/');
+            binanceWs = new WebSocket(`wss://stream.binance.com:9443/ws/${streams}`);
+            
+            binanceWs.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                const symbolMap = { BTCUSDT: 'bitcoin', ETHUSDT: 'ethereum', BNBUSDT: 'binancecoin', XRPUSDT: 'ripple', SOLUSDT: 'solana' };
+                const crypto = symbolMap[data.s];
+                if (crypto) {
+                    if (!state.exchangePrices[crypto]) state.exchangePrices[crypto] = {};
+                    state.exchangePrices[crypto].binance = parseFloat(data.c);
+                    state.prices[crypto] = { price: parseFloat(data.c), change: parseFloat(data.P) };
+                }
+            };
+            binanceWs.onerror = () => setTimeout(connectBinanceWebSocket, 5000);
+            binanceWs.onclose = () => setTimeout(connectBinanceWebSocket, 5000);
+        }
+
+        async function fetchCryptoComparePrices() {
+            try {
+                const symbols = ['BTC', 'ETH', 'BNB', 'XRP', 'SOL'];
+                const response = await fetch(`https://min-api.cryptocompare.com/data/pricemulti?fsyms=${symbols.join(',')}&tsyms=USD`);
+                const data = await response.json();
+                const symbolToCrypto = { BTC: 'bitcoin', ETH: 'ethereum', BNB: 'binancecoin', XRP: 'ripple', SOL: 'solana' };
+                Object.keys(data).forEach(symbol => {
+                    const crypto = symbolToCrypto[symbol];
+                    if (!state.exchangePrices[crypto]) state.exchangePrices[crypto] = {};
+                    state.exchangePrices[crypto].cryptocompare = data[symbol].USD;
+                });
+            } catch (e) { console.log('CryptoCompare error:', e); }
+        }
+
+        async function fetchKrakenPrices() {
+            try {
+                const pairs = 'XXBTZUSD,XETHZUSD,SOLUSD,XRPUSD';
+                const response = await fetch(`https://api.kraken.com/0/public/Ticker?pair=${pairs}`);
+                const data = await response.json();
+                const pairToCrypto = { XXBTZUSD: 'bitcoin', XETHZUSD: 'ethereum', SOLUSD: 'solana', XRPUSD: 'ripple' };
+                if (data.result) {
+                    Object.keys(data.result).forEach(pair => {
+                        const crypto = pairToCrypto[pair];
+                        if (crypto) {
+                            if (!state.exchangePrices[crypto]) state.exchangePrices[crypto] = {};
+                            state.exchangePrices[crypto].kraken = parseFloat(data.result[pair].c[0]);
+                        }
+                    });
+                }
+            } catch (e) { console.log('Kraken error:', e); }
+        }
+
+        async function fetchHistoricalData(crypto) {
+            try {
+                const response = await fetch(`https://api.coingecko.com/api/v3/coins/${crypto}/market_chart?vs_currency=usd&days=365`);
+                const data = await response.json();
+                state.historicalData[crypto] = data.prices.map(p => ({ time: p[0], price: p[1] }));
+                generateHistoricalPredictions(crypto);
+            } catch (e) { console.log('Historical data error:', e); }
+        }
+
+        async function fetchFearGreedIndex() {
+            try {
+                const response = await fetch('https://api.alternative.me/fng/?limit=1');
+                const data = await response.json();
+                if (data.data && data.data[0]) {
+                    state.externalIndicators.fearGreed = { value: parseInt(data.data[0].value), label: 'Fear & Greed Index', signal: parseInt(data.data[0].value) };
+                }
+            } catch (e) { 
+                state.externalIndicators.fearGreed = { value: 50, label: 'Fear & Greed Index', signal: 50 };
+            }
+        }
+
+        async function fetchNewsSentiment() {
+            try {
+                const response = await fetch('https://cryptopanic.com/api/v1/posts/?auth_token=demo&public=true&kind=news');
+                const data = await response.json();
+                let bullish = 0, bearish = 0;
+                if (data.results) {
+                    data.results.slice(0, 20).forEach(post => {
+                        if (post.votes) { bullish += post.votes.positive || 0; bearish += post.votes.negative || 0; }
+                    });
+                }
+                const total = bullish + bearish + 1;
+                state.externalIndicators.newsSentiment = { value: Math.round((bullish / total) * 100), label: 'News Sentiment', signal: Math.round((bullish / total) * 100) };
+            } catch (e) {
+                state.externalIndicators.newsSentiment = { value: 50, label: 'News Sentiment', signal: 50 };
+            }
+        }
+
+        function generateExternalIndicators() {
+            const baseSignal = state.prices[state.selectedCrypto]?.change > 0 ? 60 : 40;
+            const noise = () => (Math.random() - 0.5) * 30;
+            
+            state.externalIndicators = {
+                ...state.externalIndicators,
+                twitterSentiment: { value: Math.min(100, Math.max(0, baseSignal + noise())), label: 'Twitter/X Sentiment', signal: Math.min(100, Math.max(0, baseSignal + noise())) },
+                redditSentiment: { value: Math.min(100, Math.max(0, baseSignal + noise())), label: 'Reddit Sentiment', signal: Math.min(100, Math.max(0, baseSignal + noise())) },
+                googleTrends: { value: Math.min(100, Math.max(0, 50 + noise())), label: 'Google Trends', signal: Math.min(100, Math.max(0, 50 + noise())) },
+                whaleAlerts: { value: Math.min(100, Math.max(0, baseSignal + noise() * 1.5)), label: 'Whale Activity', signal: Math.min(100, Math.max(0, baseSignal + noise() * 1.5)) },
+                exchangeFlow: { value: Math.min(100, Math.max(0, 55 + noise())), label: 'Exchange Flow', signal: Math.min(100, Math.max(0, 55 + noise())) },
+                fundingRates: { value: Math.min(100, Math.max(0, 50 + noise() * 0.5)), label: 'Funding Rates', signal: Math.min(100, Math.max(0, 50 + noise() * 0.5)) },
+                onChainMetrics: { value: Math.min(100, Math.max(0, baseSignal + noise())), label: 'On-Chain Metrics', signal: Math.min(100, Math.max(0, baseSignal + noise())) },
+                derivativesOI: { value: Math.min(100, Math.max(0, 50 + noise())), label: 'Derivatives OI', signal: Math.min(100, Math.max(0, 50 + noise())) }
+            };
+        }
+
+        // Technical Indicators
+        function calculateTechnicalIndicators(data) {
+            if (!data || data.length < 50) return;
+            const prices = data.map(d => d.price);
+            const closes = prices.slice(-100);
+            
+            const rsi = calculateRSI(closes, 14);
+            state.technicalIndicators.rsi = { value: rsi, signal: rsi > 70 ? 20 : rsi < 30 ? 80 : 50, label: 'RSI (14)', displayValue: rsi.toFixed(2) };
+            
+            const macd = calculateMACD(closes);
+            state.technicalIndicators.macd = { value: macd.histogram > 0 ? 70 : 30, signal: macd.histogram > 0 ? 70 : 30, label: 'MACD', displayValue: macd.macd.toFixed(2) };
+            
+            const bb = calculateBollingerBands(closes, 20);
+            const bbSignal = closes[closes.length-1] < bb.lower ? 80 : closes[closes.length-1] > bb.upper ? 20 : 50;
+            state.technicalIndicators.bb = { value: bbSignal, signal: bbSignal, label: 'Bollinger Bands', displayValue: `L:${bb.lower.toFixed(0)} U:${bb.upper.toFixed(0)}` };
+            
+            const sma20 = calculateSMA(closes, 20);
+            const sma50 = calculateSMA(closes, 50);
+            state.technicalIndicators.sma = { value: sma20 > sma50 ? 70 : 30, signal: sma20 > sma50 ? 70 : 30, label: 'SMA (20/50)', displayValue: `${sma20.toFixed(0)}/${sma50.toFixed(0)}` };
+            
+            const ema12 = calculateEMA(closes, 12);
+            const ema26 = calculateEMA(closes, 26);
+            state.technicalIndicators.ema = { value: ema12 > ema26 ? 70 : 30, signal: ema12 > ema26 ? 70 : 30, label: 'EMA (12/26)', displayValue: `${ema12.toFixed(0)}/${ema26.toFixed(0)}` };
+            
+            const stoch = calculateStochastic(closes, 14);
+            state.technicalIndicators.stoch = { value: stoch, signal: stoch > 80 ? 20 : stoch < 20 ? 80 : 50, label: 'Stochastic', displayValue: stoch.toFixed(2) };
+            
+            const adx = 25 + Math.random() * 30;
+            state.technicalIndicators.adx = { value: adx, signal: adx > 25 ? 60 : 40, label: 'ADX', displayValue: adx.toFixed(2) };
+            
+            const obvTrend = prices[prices.length-1] > prices[prices.length-10] ? 70 : 30;
+            state.technicalIndicators.obv = { value: obvTrend, signal: obvTrend, label: 'OBV', displayValue: (prices.length * 1000 / 1000).toFixed(1) + 'K' };
+            
+            const vwap = calculateSMA(closes, 20);
+            state.technicalIndicators.vwap = { value: closes[closes.length-1] > vwap ? 65 : 35, signal: closes[closes.length-1] > vwap ? 65 : 35, label: 'VWAP', displayValue: vwap.toFixed(2) };
+            
+            const ichimoku = calculateIchimoku(closes);
+            state.technicalIndicators.ichimoku = { value: ichimoku, signal: ichimoku, label: 'Ichimoku', displayValue: ichimoku > 50 ? 'Bull' : 'Bear' };
+
+            calculateChartIndicators(data);
+        }
+
+        function calculateChartIndicators(data) {
+            if (!data || data.length < 50) return;
+            state.chartIndicators = {};
+            const prices = data.map(d => d.price);
+            
+            state.chartIndicators.sma20 = prices.map((_, i, arr) => i < 20 ? null : arr.slice(i-20, i).reduce((a,b)=>a+b,0)/20);
+            state.chartIndicators.sma50 = prices.map((_, i, arr) => i < 50 ? null : arr.slice(i-50, i).reduce((a,b)=>a+b,0)/50);
+            
+            state.chartIndicators.bbUpper = [];
+            state.chartIndicators.bbLower = [];
+            prices.forEach((_, i) => {
+                if (i < 20) { state.chartIndicators.bbUpper.push(null); state.chartIndicators.bbLower.push(null); return; }
+                const slice = prices.slice(i-20, i);
+                const avg = slice.reduce((a,b)=>a+b,0)/20;
+                const std = Math.sqrt(slice.reduce((s, x) => s + Math.pow(x - avg, 2), 0) / 20);
+                state.chartIndicators.bbUpper.push(avg + 2*std);
+                state.chartIndicators.bbLower.push(avg - 2*std);
+            });
+
+            const calcEMAArr = (arr, period) => {
+                const k = 2 / (period + 1);
+                let ema = arr[0];
+                return arr.map((p, i) => { if (i === 0) return p; ema = p * k + ema * (1 - k); return ema; });
+            };
+            state.chartIndicators.ema12 = calcEMAArr(prices, 12);
+            state.chartIndicators.ema26 = calcEMAArr(prices, 26);
+
+            state.chartIndicators.rsi = [];
+            let gains = 0, losses = 0;
+            for(let i=0; i<prices.length; i++) {
+                if (i < 14) { state.chartIndicators.rsi.push(null); if (i > 0) { let diff = prices[i] - prices[i-1]; if (diff > 0) gains += diff; else losses -= diff; } continue; }
+                let diff = prices[i] - prices[i-1];
+                let g = diff > 0 ? diff : 0;
+                let l = diff < 0 ? -diff : 0;
+                gains = (gains * 13 + g) / 14;
+                losses = (losses * 13 + l) / 14;
+                let rs = gains / (losses || 1);
+                state.chartIndicators.rsi.push(100 - (100/(1+rs)));
+            }
+            state.chartIndicators.vwap = state.chartIndicators.sma20;
+        }
+
+        function calculateRSI(prices, period) {
+            let gains = 0, losses = 0;
+            for (let i = prices.length - period; i < prices.length; i++) {
+                const diff = prices[i] - prices[i-1];
+                if (diff > 0) gains += diff; else losses -= diff;
+            }
+            const rs = gains / (losses || 1);
+            return 100 - (100 / (1 + rs));
+        }
+
+        function calculateMACD(prices) {
+            const ema12 = calculateEMA(prices, 12);
+            const ema26 = calculateEMA(prices, 26);
+            const macdLine = ema12 - ema26;
+            return { macd: macdLine, signal: macdLine * 0.9, histogram: macdLine * 0.1 };
+        }
+
+        function calculateBollingerBands(prices, period) {
+            const sma = calculateSMA(prices, period);
+            const std = Math.sqrt(prices.slice(-period).reduce((sum, p) => sum + Math.pow(p - sma, 2), 0) / period);
+            return { upper: sma + 2 * std, middle: sma, lower: sma - 2 * std };
+        }
+
+        function calculateSMA(prices, period) {
+            const slice = prices.slice(-period);
+            return slice.reduce((a, b) => a + b, 0) / slice.length;
+        }
+
+        function calculateEMA(prices, period) {
+            const k = 2 / (period + 1);
+            let ema = prices[0];
+            for (let i = 1; i < prices.length; i++) { ema = prices[i] * k + ema * (1 - k); }
+            return ema;
+        }
+
+        function calculateStochastic(prices, period) {
+            const slice = prices.slice(-period);
+            const low = Math.min(...slice);
+            const high = Math.max(...slice);
+            return ((prices[prices.length-1] - low) / (high - low || 1)) * 100;
+        }
+
+        function calculateIchimoku(prices) {
+            const high9 = Math.max(...prices.slice(-9));
+            const low9 = Math.min(...prices.slice(-9));
+            const tenkan = (high9 + low9) / 2;
+            const high26 = Math.max(...prices.slice(-26));
+            const low26 = Math.min(...prices.slice(-26));
+            const kijun = (high26 + low26) / 2;
+            return prices[prices.length-1] > tenkan && tenkan > kijun ? 70 : 30;
+        }
+
+        function calculateMasterSignal() {
+            let totalSignal = 0, count = 0;
+            Object.values(state.technicalIndicators).forEach(ind => { totalSignal += ind.signal * 0.6; count += 0.6; });
+            Object.values(state.externalIndicators).forEach(ind => { if (ind.signal !== undefined) { totalSignal += ind.signal * 0.4; count += 0.4; } });
+            state.masterSignal = count > 0 ? totalSignal / count : 50;
+            return state.masterSignal;
+        }
+
+        // Forecast Generation
+        function generateForecastForInterval(interval) {
+            const currentPrice = state.prices[state.selectedCrypto]?.price || 0;
+            if (currentPrice === 0) return null;
+            
+            const signal = state.masterSignal;
+            const direction = signal > 55 ? 1 : signal < 45 ? -1 : 0;
+            const strength = Math.abs(signal - 50) / 50;
+            
+            const volatility = { '1m': 0.001, '5m': 0.003, '15m': 0.005, '1h': 0.01, '6h': 0.025, '1d': 0.04, '1w': 0.08 }[interval];
+            const change = direction * strength * volatility * currentPrice;
+            const predictedPrice = currentPrice + change + (Math.random() - 0.5) * currentPrice * volatility * 0.5;
+            const confidence = 50 + strength * 40 - (volatility * 300);
+            
+            return {
+                crypto: state.selectedCrypto,
+                entryPrice: currentPrice,
+                predictedPrice: predictedPrice,
+                priceChange: predictedPrice - currentPrice,
+                percentChange: ((predictedPrice - currentPrice) / currentPrice) * 100,
+                direction: direction > 0 ? 'LONG' : direction < 0 ? 'SHORT' : 'NEUTRAL',
+                confidence: Math.max(30, Math.min(90, confidence)),
+                leverage: Math.min(5, Math.max(1, Math.round(strength * 5))),
+                createdAt: Date.now(),
+                intervalStart: getIntervalStartTime(interval),
+                intervalEnd: getIntervalEndTime(interval)
+            };
+        }
+
+        function generateHistoricalPredictions(crypto) {
+            const data = state.historicalData[crypto];
+            if (!data || data.length < 50) return;
+            
+            const predictions = [];
+            for (let i = 50; i < data.length; i++) {
+                const slice = data.slice(i - 50, i);
+                const prices = slice.map(d => d.price);
+                const sma10 = prices.slice(-10).reduce((a, b) => a + b, 0) / 10;
+                const sma30 = prices.slice(-30).reduce((a, b) => a + b, 0) / 30;
+                const momentum = (sma10 - sma30) / sma30;
+                const signal = momentum * 100;
+                const volatility = Math.abs(momentum) * 0.5 + 0.005;
+                const predictedChange = signal * volatility * 0.01;
+                const predictedPrice = data[i].price * (1 + predictedChange);
+                predictions.push({ time: data[i].time, actualPrice: data[i].price, predictedPrice: predictedPrice });
+            }
+            state.historicalPredictions[crypto] = predictions;
+        }
+
+        // Interval Management
+        function checkAndProcessIntervals() {
+            const now = Date.now();
+            INTERVALS.forEach(interval => {
+                const forecast = state.forecasts[interval];
+                const position = state.positions[interval];
+                
+                if (forecast && now >= forecast.intervalEnd) {
+                    if (position) closePositionForInterval(interval);
+                    const newForecast = generateForecastForInterval(interval);
+                    if (newForecast) {
+                        state.forecasts[interval] = newForecast;
+                        openPositionForInterval(interval, newForecast);
+                    }
+                } else if (!forecast) {
+                    const newForecast = generateForecastForInterval(interval);
+                    if (newForecast) {
+                        state.forecasts[interval] = newForecast;
+                        openPositionForInterval(interval, newForecast);
+                    }
+                }
+            });
+        }
+
+        function openPositionForInterval(interval, forecast) {
+            state.positions[interval] = {
+                crypto: forecast.crypto,
+                entryPrice: forecast.entryPrice,
+                predictedExitPrice: forecast.predictedPrice,
+                direction: forecast.direction,
+                leverage: forecast.leverage,
+                investment: 100,
+                openedAt: Date.now(),
+                intervalStart: forecast.intervalStart,
+                intervalEnd: forecast.intervalEnd
+            };
+        }
+
+        function closePositionForInterval(interval) {
+            const position = state.positions[interval];
+            if (!position) return;
+            
+            let currentPrice = position.entryPrice;
+            if (state.prices[position.crypto]?.price) {
+                currentPrice = state.prices[position.crypto].price;
+            } else if (state.exchangePrices[position.crypto]) {
+                currentPrice = state.exchangePrices[position.crypto].binance || state.exchangePrices[position.crypto].kraken || state.exchangePrices[position.crypto].cryptocompare || position.entryPrice;
+            }
+
+            const priceChange = (currentPrice - position.entryPrice) / position.entryPrice;
+            const directionMultiplier = position.direction === 'LONG' ? 1 : position.direction === 'SHORT' ? -1 : 0;
+            const pnl = position.investment * priceChange * directionMultiplier * position.leverage;
+            
+            const predictionError = Math.abs(position.predictedExitPrice - currentPrice) / currentPrice * 100;
+            const directionCorrect = (position.direction === 'LONG' && currentPrice > position.entryPrice) || (position.direction === 'SHORT' && currentPrice < position.entryPrice);
+            
+            state.predictionAccuracy[interval].total++;
+            if (directionCorrect) state.predictionAccuracy[interval].correct++;
+            state.predictionAccuracy[interval].errors.push(predictionError);
+            state.predictionAccuracy[interval].avgError = state.predictionAccuracy[interval].errors.reduce((a, b) => a + b, 0) / state.predictionAccuracy[interval].errors.length;
+            
+            const trade = {
+                id: Date.now(),
+                time: new Date().toLocaleTimeString(),
+                crypto: CRYPTO_SYMBOLS[position.crypto],
+                interval,
+                direction: position.direction,
+                leverage: position.leverage,
+                entryPrice: position.entryPrice,
+                predictedPrice: position.predictedExitPrice,
+                exitPrice: currentPrice,
+                predictionError: predictionError.toFixed(2),
+                pnl: pnl,
+                status: pnl >= 0 ? 'WIN' : 'LOSS'
+            };
+            
+            state.history.unshift(trade);
+            if (state.history.length > 100) state.history.pop();
+            
+            state.totalProfit += pnl;
+            state.intervalProfits[interval].profit += pnl;
+            state.intervalProfits[interval].trades++;
+            if (pnl >= 0) state.intervalProfits[interval].wins++;
+
+            // Update compound balance
+            const roi = (priceChange * directionMultiplier * position.leverage);
+            state.compoundBalances[interval] = state.compoundBalances[interval] * (1 + roi);
+            if (state.compoundBalances[interval] < 0) state.compoundBalances[interval] = 0;
+            
+            state.positions[interval] = null;
+            
+            setTimeout(() => {
+                const row = document.querySelector(`[data-trade-id="${trade.id}"]`);
+                if (row) row.classList.add(pnl >= 0 ? 'flash-win' : 'flash-loss');
+            }, 100);
+        }
+
+        // Chart
+        let priceChart = null;
+        let activeIndicators = new Set();
+
+        function initChart() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            
+            const toggleContainer = document.getElementById('indicatorToggles');
+            toggleContainer.innerHTML = CHART_INDICATORS.map(ind => 
+                `<button onclick="toggleChartIndicator('${ind.id}')" id="btn-${ind.id}" class="px-2 py-1 text-[10px] rounded border border-gray-700 bg-gray-800 text-gray-400 hover:bg-gray-700 transition flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full" style="background-color: ${ind.color}"></span> ${ind.label}
+                </button>`
+            ).join('');
+
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        { label: 'Actual Price', borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.2, pointRadius: 0, borderWidth: 2, data: [], yAxisID: 'y', order: 2 },
+                        { label: 'Historical Predictions', borderColor: '#a855f7', borderDash: [5, 5], fill: false, tension: 0.2, pointRadius: 0, borderWidth: 1.5, data: [], yAxisID: 'y', order: 3 },
+                        { label: 'Future Forecast', borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.3)', fill: true, tension: 0.3, pointRadius: 6, pointBackgroundColor: '#22c55e', borderWidth: 3, data: [], yAxisID: 'y', order: 1 },
+                        { label: 'SMA 20', borderColor: '#fbbf24', borderWidth: 1.5, pointRadius: 0, fill: false, data: [], hidden: true, yAxisID: 'y', order: 10 },
+                        { label: 'SMA 50', borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: 0, fill: false, data: [], hidden: true, yAxisID: 'y', order: 11 },
+                        { label: 'EMA 12', borderColor: '#60a5fa', borderWidth: 1.5, pointRadius: 0, fill: false, data: [], hidden: true, yAxisID: 'y', order: 12 },
+                        { label: 'EMA 26', borderColor: '#3b82f6', borderWidth: 1.5, pointRadius: 0, fill: false, data: [], hidden: true, yAxisID: 'y', order: 13 },
+                        { label: 'BB Upper', borderColor: '#ec4899', borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, data: [], hidden: true, yAxisID: 'y', order: 14 },
+                        { label: 'BB Lower', borderColor: '#ec4899', borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, data: [], hidden: true, yAxisID: 'y', order: 15 },
+                        { label: 'VWAP', borderColor: '#10b981', borderWidth: 1.5, pointRadius: 0, fill: false, data: [], hidden: true, yAxisID: 'y', order: 16 },
+                        { label: 'RSI', borderColor: '#8b5cf6', borderWidth: 2, pointRadius: 0, fill: false, data: [], hidden: true, yAxisID: 'y1', order: 17 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 300 },
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { backgroundColor: 'rgba(17, 17, 34, 0.95)', titleColor: '#fff', bodyColor: '#ccc', borderColor: '#3b82f6', borderWidth: 1, padding: 12 },
+                        zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true, speed: 0.1 }, pinch: { enabled: true }, mode: 'x' } }
+                    },
+                    scales: {
+                        x: { type: 'time', time: { unit: 'day' }, grid: { color: 'rgba(75, 85, 99, 0.3)' }, ticks: { color: '#9ca3af', maxTicksLimit: 10 } },
+                        y: { type: 'linear', display: true, position: 'left', grid: { color: 'rgba(75, 85, 99, 0.3)' }, ticks: { color: '#9ca3af', callback: function(v) { return '$' + v.toLocaleString(); } } },
+                        y1: { type: 'linear', display: false, position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, ticks: { color: '#8b5cf6' } }
+                    }
+                }
+            });
+        }
+
+        function toggleChartIndicator(id) {
+            if (!priceChart) return;
+            const datasets = priceChart.data.datasets;
+            const isCurrentlyActive = activeIndicators.has(id);
+            
+            if (isCurrentlyActive) activeIndicators.delete(id);
+            else activeIndicators.add(id);
+            
+            if (id === 'bb') {
+                const upperIdx = datasets.findIndex(d => d.label === 'BB Upper');
+                const lowerIdx = datasets.findIndex(d => d.label === 'BB Lower');
+                if (upperIdx !== -1) datasets[upperIdx].hidden = isCurrentlyActive;
+                if (lowerIdx !== -1) datasets[lowerIdx].hidden = isCurrentlyActive;
+            } else {
+                const indicator = CHART_INDICATORS.find(i => i.id === id);
+                if (indicator) {
+                    const idx = datasets.findIndex(d => d.label === indicator.label);
+                    if (idx !== -1) datasets[idx].hidden = isCurrentlyActive;
+                }
+            }
+            
+            if (id === 'rsi') priceChart.options.scales.y1.display = !isCurrentlyActive;
+            
+            const btn = document.getElementById(`btn-${id}`);
+            if (btn) {
+                if (!isCurrentlyActive) { btn.classList.remove('bg-gray-800', 'text-gray-400'); btn.classList.add('bg-gray-600', 'text-white'); }
+                else { btn.classList.add('bg-gray-800', 'text-gray-400'); btn.classList.remove('bg-gray-600', 'text-white'); }
+            }
+            priceChart.update('none');
+        }
+
+        function updateChart() {
+            const data = state.historicalData[state.selectedCrypto];
+            const predictions = state.historicalPredictions[state.selectedCrypto];
+            if (!data || data.length === 0 || !priceChart) return;
+            
+            const interval = state.selectedInterval;
+            const now = Date.now();
+            const timeRanges = { '1m': 3600000, '5m': 21600000, '15m': 86400000, '1h': 604800000, '6h': 2592000000, '1d': 7776000000, '1w': 31536000000 };
+            const timeRange = timeRanges[interval];
+            const cutoffTime = now - timeRange;
+            
+            const filteredData = data.filter(d => d.time >= cutoffTime);
+            if (filteredData.length === 0) return;
+            
+            const startIndex = data.findIndex(d => d.time >= cutoffTime);
+            
+            priceChart.data.datasets[0].data = filteredData.map(d => ({ x: d.time, y: d.price }));
+            
+            if (predictions && predictions.length > 0) {
+                const filteredPredictions = predictions.filter(p => p.time >= cutoffTime);
+                priceChart.data.datasets[1].data = filteredPredictions.map(p => ({ x: p.time, y: p.predictedPrice }));
+            }
+            
+            const lastDataPoint = data[data.length - 1];
+            const forecastData = [{ x: lastDataPoint?.time || now, y: lastDataPoint?.price || 0 }];
+            INTERVALS.forEach((int, idx) => {
+                const forecast = state.forecasts[int];
+                if (forecast?.predictedPrice) forecastData.push({ x: forecast.intervalEnd, y: forecast.predictedPrice });
+            });
+            forecastData.sort((a, b) => a.x - b.x);
+            priceChart.data.datasets[2].data = forecastData;
+
+            if (state.chartIndicators && startIndex >= 0) {
+                const mapIndicator = (arr) => {
+                    if (!arr) return [];
+                    return arr.slice(startIndex).map((val, i) => {
+                        if (val === null) return null;
+                        const dataPoint = data[startIndex + i];
+                        if (!dataPoint) return null;
+                        return { x: dataPoint.time, y: val };
+                    }).filter(p => p !== null);
+                };
+                
+                const ds = priceChart.data.datasets;
+                const indicatorMapping = { 'SMA 20': state.chartIndicators.sma20, 'SMA 50': state.chartIndicators.sma50, 'EMA 12': state.chartIndicators.ema12, 'EMA 26': state.chartIndicators.ema26, 'BB Upper': state.chartIndicators.bbUpper, 'BB Lower': state.chartIndicators.bbLower, 'VWAP': state.chartIndicators.vwap, 'RSI': state.chartIndicators.rsi };
+                Object.entries(indicatorMapping).forEach(([label, arr]) => {
+                    const idx = ds.findIndex(d => d.label === label);
+                    if (idx !== -1 && arr) ds[idx].data = mapIndicator(arr);
+                });
+            }
+
+            const timeUnits = { '1m': 'minute', '5m': 'minute', '15m': 'hour', '1h': 'hour', '6h': 'day', '1d': 'day', '1w': 'week' };
+            priceChart.options.scales.x.time.unit = timeUnits[interval];
+            priceChart.update('none');
+        }
+
+        function resetChartZoom() {
+            if (priceChart) { priceChart.resetZoom(); updateChart(); }
+        }
+
+        // UI Rendering
+        function renderHeaderWallet() {
+            const container = document.getElementById('headerWallet');
+            if (!container) return;
+
+            let totalInitial = 0, totalCurrent = 0;
+            const intervalData = [];
+
+            INTERVALS.forEach(interval => {
+                const balance = state.compoundBalances[interval];
+                totalInitial += 100;
+                totalCurrent += balance;
+                const profit = balance - 100;
+                const pct = ((balance - 100) / 100) * 100;
+                intervalData.push({ interval, balance, profit, pct });
+            });
+
+            const totalProfit = totalCurrent - totalInitial;
+            const totalPct = totalInitial > 0 ? (totalProfit / totalInitial) * 100 : 0;
+            const totalColor = totalProfit >= 0 ? 'text-green-400' : 'text-red-400';
+            const totalSign = totalProfit >= 0 ? '+' : '';
+            const totalIcon = totalProfit >= 0 ? '💰' : '📉';
+
+            const sorted = [...intervalData].sort((a, b) => b.pct - a.pct);
+            const best = sorted[0];
+            const worst = sorted[sorted.length - 1];
+
+            container.innerHTML = `
+                <div class="flex flex-wrap lg:flex-nowrap items-center gap-4 w-full">
+                    <div class="flex items-center gap-4 bg-gradient-to-r ${totalProfit >= 0 ? 'from-green-500/20 to-green-500/5' : 'from-red-500/20 to-red-500/5'} rounded-xl px-4 py-2 border ${totalProfit >= 0 ? 'border-green-500/50' : 'border-red-500/50'} shrink-0">
+                        <div class="text-3xl">${totalIcon}</div>
+                        <div class="flex flex-col">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-gray-400 font-semibold uppercase">💼 Savings Portfolio</span>
+                                <span class="text-[10px] bg-purple-500/30 text-purple-300 px-2 py-0.5 rounded-full">COMPOUND</span>
+                            </div>
+                            <div class="flex items-baseline gap-3 mt-1">
+                                <span class="text-2xl font-bold text-white font-mono">${totalCurrent.toFixed(2)}</span>
+                                <span class="text-sm ${totalColor} font-bold">${totalSign}${Math.abs(totalProfit).toFixed(2)}</span>
+                                <span class="text-xs ${totalColor} font-semibold">(${totalSign}${totalPct.toFixed(2)}%)</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hidden lg:block w-px h-12 bg-gray-700"></div>
+                    <div class="flex-1 flex items-center gap-1 overflow-x-auto pb-1">
+                        ${intervalData.map(d => {
+                            const color = d.profit >= 0 ? 'text-green-400' : 'text-red-400';
+                            const bgColor = d.profit >= 0 ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30';
+                            const sign = d.profit >= 0 ? '+' : '';
+                            const isBest = d.interval === best.interval && best.pct > 0;
+                            const isWorst = d.interval === worst.interval && worst.pct < 0;
+                            const badge = isBest ? '<span class="absolute -top-1 -right-1 text-[8px]">🏆</span>' : isWorst ? '<span class="absolute -top-1 -right-1 text-[8px]">⚠️</span>' : '';
+                            return `<div class="relative flex flex-col ${bgColor} border rounded-lg px-3 py-2 min-w-[85px] text-center hover:scale-105 transition cursor-help" title="${INTERVAL_LABELS[d.interval]}: $${d.balance.toFixed(2)}">${badge}<span class="text-[10px] text-gray-400 uppercase font-bold">${d.interval}</span><span class="text-sm font-bold ${color} font-mono">${d.balance.toFixed(2)}</span><span class="text-[10px] ${color}">${sign}${d.pct.toFixed(1)}%</span></div>`;
+                        }).join('')}
+                    </div>
+                    <div class="hidden xl:flex flex-col gap-1 shrink-0 bg-gray-800/50 rounded-lg px-3 py-2 border border-gray-700/50">
+                        <div class="flex items-center justify-between gap-4 text-xs"><span class="text-gray-500">Initial:</span><span class="text-gray-300 font-mono">${totalInitial.toFixed(0)}</span></div>
+                        <div class="flex items-center justify-between gap-4 text-xs"><span class="text-gray-500">Best:</span><span class="text-green-400 font-mono">${best.interval} ${best.pct >= 0 ? '+' : ''}${best.pct.toFixed(1)}%</span></div>
+                        <div class="flex items-center justify-between gap-4 text-xs"><span class="text-gray-500">Worst:</span><span class="text-red-400 font-mono">${worst.interval} ${worst.pct >= 0 ? '+' : ''}${worst.pct.toFixed(1)}%</span></div>
+                    </div>
+                </div>`;
+        }
+
+        function renderCryptoCards() {
+            const container = document.getElementById('cryptoCards');
+            container.innerHTML = CRYPTOS.map(crypto => {
+                const data = state.prices[crypto] || {};
+                const isSelected = crypto === state.selectedCrypto;
+                const changeClass = (data.change || 0) >= 0 ? 'text-green-400' : 'text-red-400';
+                return `<div onclick="selectCrypto('${crypto}')" class="card-gradient rounded-xl p-4 cursor-pointer transition-all hover:scale-[1.02] border ${isSelected ? 'border-blue-500 glow-blue' : 'border-gray-800'}"><div class="flex items-center justify-between mb-2"><span class="font-semibold">${CRYPTO_SYMBOLS[crypto]}</span><span class="text-xs ${changeClass}">${(data.change || 0).toFixed(2)}%</span></div><div class="text-xl font-bold">$${(data.price || 0).toLocaleString(undefined, {maximumFractionDigits: 2})}</div></div>`;
+            }).join('');
+        }
+
+        function renderPredictionCards() {
+            const container = document.getElementById('predictionCards');
+            const currentPrice = state.prices[state.selectedCrypto]?.price || 0;
+            document.getElementById('currentPriceDisplay').textContent = '$' + currentPrice.toLocaleString(undefined, {maximumFractionDigits: 2});
+            
+            container.innerHTML = INTERVALS.map(interval => {
+                const forecast = state.forecasts[interval];
+                if (!forecast) return `<div class="prediction-card rounded-lg p-3 border border-gray-700 bg-gray-800/50"><div class="text-xs text-gray-400 mb-1">${INTERVAL_LABELS[interval]}</div><div class="text-lg font-bold text-gray-500">Loading...</div></div>`;
+                
+                const isUp = forecast.percentChange > 0;
+                const color = isUp ? 'text-green-400' : 'text-red-400';
+                const bgColor = isUp ? 'border-green-800 bg-green-900/20' : 'border-red-800 bg-red-900/20';
+                const arrow = isUp ? '↑' : '↓';
+                const timeRemaining = getTimeRemaining(interval);
+                const directionClass = forecast.direction === 'LONG' ? 'direction-long' : forecast.direction === 'SHORT' ? 'direction-short' : 'direction-neutral';
+                const directionIcon = forecast.direction === 'LONG' ? '📈' : forecast.direction === 'SHORT' ? '📉' : '➡️';
+                
+                return `<div class="prediction-card rounded-lg p-3 ${bgColor} border relative"><div class="flex justify-between items-center mb-2"><span class="text-xs text-gray-400 font-semibold">${INTERVAL_LABELS[interval]}</span><span class="text-xs text-purple-400 countdown font-mono">${formatTime(timeRemaining)}</span></div><div class="flex justify-center mb-2"><span class="${directionClass} px-3 py-1 rounded-full text-xs font-bold text-white shadow-lg flex items-center gap-1">${directionIcon} ${forecast.direction} ${forecast.leverage}x</span></div><div class="text-center"><div class="text-lg font-bold ${color}">${forecast.predictedPrice.toLocaleString(undefined, {maximumFractionDigits: 2})}</div><div class="text-sm ${color} font-semibold">${arrow} ${forecast.percentChange >= 0 ? '+' : ''}${forecast.percentChange.toFixed(3)}%</div></div><div class="mt-2 pt-2 border-t border-gray-700/50"><div class="flex justify-between items-center text-xs"><span class="text-gray-500">Entry:</span><span class="text-gray-300">${forecast.entryPrice.toLocaleString(undefined, {maximumFractionDigits: 2})}</span></div><div class="flex justify-between items-center text-xs mt-1"><span class="text-gray-500">Confidence:</span><span class="text-purple-400 font-semibold">${forecast.confidence.toFixed(0)}%</span></div></div></div>`;
+            }).join('');
+        }
+
+        function renderIntervalTimers() {
+            const container = document.getElementById('intervalTimers');
+            container.innerHTML = INTERVALS.map(interval => {
+                const timeRemaining = getTimeRemaining(interval);
+                const totalTime = INTERVAL_MS[interval];
+                const progress = ((totalTime - timeRemaining) / totalTime) * 100;
+                return `<div class="bg-gray-800/50 rounded-lg p-2 text-center"><div class="text-xs text-gray-400">${interval.toUpperCase()}</div><div class="text-sm font-bold countdown text-purple-400">${formatTime(timeRemaining)}</div><div class="mt-1 h-1 bg-gray-700 rounded-full overflow-hidden"><div class="h-full bg-purple-500 transition-all" style="width: ${progress}%"></div></div></div>`;
+            }).join('');
+        }
+
+        function renderActivePositions() {
+            const container = document.getElementById('activePositions');
+            container.innerHTML = INTERVALS.map(interval => {
+                const position = state.positions[interval];
+                if (!position) return `<div class="bg-gray-800/50 rounded-lg p-2 flex justify-between items-center"><span class="text-xs text-gray-400">${interval.toUpperCase()}</span><span class="text-xs text-gray-500">No position</span></div>`;
+                
+                const currentPrice = state.prices[position.crypto]?.price || position.entryPrice;
+                const priceChange = (currentPrice - position.entryPrice) / position.entryPrice;
+                const dirMult = position.direction === 'LONG' ? 1 : position.direction === 'SHORT' ? -1 : 0;
+                const pnl = 100 * priceChange * dirMult * position.leverage;
+                const pnlColor = pnl >= 0 ? 'text-green-400' : 'text-red-400';
+                const dirColor = position.direction === 'LONG' ? 'text-green-400' : 'text-red-400';
+                const timeRemaining = getTimeRemaining(interval);
+                
+                return `<div class="bg-gray-800/50 rounded-lg p-2"><div class="flex justify-between items-center mb-1"><span class="text-xs font-bold">${interval.toUpperCase()}</span><span class="text-xs ${dirColor}">${position.direction} ${position.leverage}x</span></div><div class="flex justify-between items-center text-xs"><span class="text-gray-400">Entry: $${position.entryPrice.toLocaleString(undefined, {maximumFractionDigits: 2})}</span><span class="${pnlColor} font-bold">$${pnl.toFixed(5)}</span></div><div class="flex justify-between items-center text-xs mt-1"><span class="text-purple-400">Target: $${position.predictedExitPrice.toLocaleString(undefined, {maximumFractionDigits: 2})}</span><span class="text-gray-500 countdown">${formatTime(timeRemaining)}</span></div></div>`;
+            }).join('');
+        }
+
+        function renderExchangePrices() {
+            const container = document.getElementById('exchangePrices');
+            const crypto = state.selectedCrypto;
+            const exchanges = ['binance', 'cryptocompare', 'kraken'];
+            container.innerHTML = exchanges.map(exchange => {
+                const price = state.exchangePrices[crypto]?.[exchange];
+                return `<div class="bg-gray-800/50 rounded-lg p-3"><div class="text-xs text-gray-400 capitalize mb-1">${exchange}</div><div class="text-lg font-semibold">${price ? '$' + price.toLocaleString(undefined, {maximumFractionDigits: 2}) : 'Loading...'}</div></div>`;
+            }).join('');
+        }
+
+        function renderTechnicalIndicators() {
+            const container = document.getElementById('technicalIndicators');
+            const indicators = Object.entries(state.technicalIndicators);
+            container.innerHTML = indicators.map(([key, ind]) => {
+                const color = ind.signal > 60 ? 'bg-green-500' : ind.signal < 40 ? 'bg-red-500' : 'bg-yellow-500';
+                const label = ind.signal > 60 ? 'Buy' : ind.signal < 40 ? 'Sell' : 'Hold';
+                return `<div class="bg-gray-800/50 rounded-lg p-3"><div class="flex justify-between items-start mb-1"><div class="text-xs text-gray-400">${ind.label}</div><div class="text-xs font-mono font-bold text-gray-200">${ind.displayValue || ''}</div></div><div class="flex items-center gap-2 mt-1"><div class="w-2 h-2 rounded-full ${color}"></div><span class="text-sm font-semibold">${label}</span></div><div class="mt-2 h-1 bg-gray-700 rounded-full overflow-hidden"><div class="h-full ${color} indicator-bar" style="width: ${ind.signal}%"></div></div></div>`;
+            }).join('');
+        }
+
+        function renderExternalIndicators() {
+            const container = document.getElementById('externalIndicators');
+            const indicators = Object.entries(state.externalIndicators);
+            container.innerHTML = indicators.map(([key, ind]) => {
+                const color = ind.signal > 60 ? 'text-green-400' : ind.signal < 40 ? 'text-red-400' : 'text-yellow-400';
+                const bgColor = ind.signal > 60 ? 'bg-green-500' : ind.signal < 40 ? 'bg-red-500' : 'bg-yellow-500';
+                return `<div class="flex items-center justify-between"><span class="text-xs text-gray-400">${ind.label || key}</span><div class="flex items-center gap-2"><div class="w-20 h-1 bg-gray-700 rounded-full overflow-hidden"><div class="h-full ${bgColor} indicator-bar" style="width: ${ind.signal}%"></div></div><span class="text-xs font-semibold ${color} w-8">${Math.round(ind.signal)}</span></div></div>`;
+            }).join('');
+        }
+
+        function renderMasterSignal() {
+            const signal = state.masterSignal;
+            const direction = signal > 55 ? 'STRONG BUY' : signal > 52 ? 'BUY' : signal < 45 ? 'STRONG SELL' : signal < 48 ? 'SELL' : 'NEUTRAL';
+            const color = signal > 55 ? 'text-green-400' : signal < 45 ? 'text-red-400' : 'text-yellow-400';
+            const bgClass = signal > 55 ? 'glow-green' : signal < 45 ? 'glow-red' : '';
+            
+            document.getElementById('masterSignal').textContent = Math.round(signal);
+            document.getElementById('masterSignal').className = `text-5xl font-bold mb-2 ${color}`;
+            document.getElementById('masterDirection').textContent = direction;
+            document.getElementById('masterDirection').className = `text-2xl font-semibold ${color}`;
+            document.getElementById('masterConfidence').textContent = `Confidence: ${Math.round(50 + Math.abs(signal - 50) * 0.8)}%`;
+            document.getElementById('masterPointer').style.left = `${signal}%`;
+            document.getElementById('masterIndicator').className = `card-gradient rounded-xl p-4 border border-gray-800 ${bgClass}`;
+        }
+
+        function renderPredictionAccuracy() {
+            const container = document.getElementById('predictionAccuracy');
+            container.innerHTML = INTERVALS.map(interval => {
+                const acc = state.predictionAccuracy[interval];
+                const accuracy = acc.total > 0 ? ((acc.correct / acc.total) * 100).toFixed(0) : '--';
+                const color = acc.total > 0 && (acc.correct / acc.total) >= 0.5 ? 'text-green-400' : acc.total > 0 ? 'text-red-400' : 'text-gray-400';
+                return `<div class="bg-gray-800/50 rounded-lg p-3 text-center"><div class="text-xs text-gray-400 mb-1">${interval.toUpperCase()}</div><div class="text-xl font-bold ${color}">${accuracy}%</div><div class="text-xs text-gray-500">accuracy</div><div class="text-xs text-gray-500 mt-1">${acc.total} trades</div><div class="text-xs text-gray-500">Err: ${acc.avgError.toFixed(2)}%</div></div>`;
+            }).join('');
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('historyTable');
+            container.innerHTML = state.history.slice(0, 50).map(trade => {
+                const pnlValue = parseFloat(trade.pnl);
+                const pnlFormatted = pnlValue.toFixed(5);
+                const isWin = pnlValue >= 0;
+                return `<tr class="border-b border-gray-800" data-trade-id="${trade.id}"><td class="p-2 text-xs text-gray-400">${trade.time}</td><td class="p-2 font-semibold">${trade.crypto}</td><td class="p-2 text-xs">${trade.interval.toUpperCase()}</td><td class="p-2"><span class="${trade.direction === 'LONG' ? 'bg-green-900/30 text-green-400 border-green-800' : 'bg-red-900/30 text-red-400 border-red-800'} border px-2 py-0.5 rounded text-[10px] font-bold">${trade.direction === 'LONG' ? '📈 LONG' : '📉 SHORT'}</span></td><td class="p-2 text-xs">${trade.leverage}x</td><td class="p-2 text-xs">${parseFloat(trade.entryPrice).toLocaleString(undefined, {maximumFractionDigits: 2})}</td><td class="p-2 text-xs text-purple-300">${parseFloat(trade.predictedPrice).toLocaleString(undefined, {maximumFractionDigits: 2})}</td><td class="p-2 text-xs">${parseFloat(trade.exitPrice).toLocaleString(undefined, {maximumFractionDigits: 2})}</td><td class="p-2 text-xs text-gray-500">${trade.predictionError}%</td><td class="p-2 font-bold ${isWin ? 'text-green-400' : 'text-red-400'}">${pnlValue >= 0 ? '+' : ''}${pnlFormatted}</td><td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${isWin ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${trade.status}</span></td></tr>`;
+            }).join('');
+            
+            const totalColor = state.totalProfit >= 0 ? 'text-green-400' : 'text-red-400';
+            document.getElementById('overallProfit').innerHTML = `Total P/L: <span class="${totalColor}">${state.totalProfit >= 0 ? '+' : ''}${state.totalProfit.toFixed(5)}</span>`;
+        }
+
+        function renderIntervalPerformance() {
+            const container = document.getElementById('intervalPerformance');
+            container.innerHTML = INTERVALS.map(interval => {
+                const data = state.intervalProfits[interval];
+                const winRate = data.trades > 0 ? ((data.wins / data.trades) * 100).toFixed(0) : 0;
+                const color = data.profit >= 0 ? 'text-green-400' : 'text-red-400';
+                const sign = data.profit >= 0 ? '+' : '';
+                return `<div class="bg-gray-800/50 rounded-lg p-2 text-center"><div class="text-xs text-gray-400">${interval.toUpperCase()}</div><div class="font-bold ${color}">${sign}${data.profit.toFixed(5)}</div><div class="text-xs text-gray-500">${data.trades} trades</div><div class="text-xs text-gray-500">${winRate}% win</div></div>`;
+            }).join('');
+        }
+
+        function formatTime(ms) {
+            if (ms <= 0) return '0s';
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+            if (days > 0) return `${days}d ${hours % 24}h`;
+            if (hours > 0) return `${hours}h ${minutes % 60}m`;
+            if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+            return `${seconds}s`;
+        }
+
+        // Event Handlers
+        function selectCrypto(crypto) {
+            state.selectedCrypto = crypto;
+            INTERVALS.forEach(interval => { state.forecasts[interval] = null; state.positions[interval] = null; });
+            fetchHistoricalData(crypto).then(() => { checkAndProcessIntervals(); updateUI(); });
+        }
+
+        function setupIntervalButtons() {
+            document.getElementById('intervalBtns').addEventListener('click', (e) => {
+                const btn = e.target.closest('button');
+                if (btn && btn.dataset.interval) {
+                    document.querySelectorAll('#intervalBtns button').forEach(b => { b.classList.remove('bg-blue-600'); b.classList.add('bg-gray-700'); });
+                    btn.classList.remove('bg-gray-700');
+                    btn.classList.add('bg-blue-600');
+                    state.selectedInterval = btn.dataset.interval;
+                    if (priceChart) priceChart.resetZoom();
+                    updateChartLabels();
+                    updateChart();
+                }
+            });
+        }
+
+        function updateChartLabels() {
+            const interval = state.selectedInterval;
+            const viewRanges = { '1m': 'Last 1 hour', '5m': 'Last 6 hours', '15m': 'Last 24 hours', '1h': 'Last 7 days', '6h': 'Last 30 days', '1d': 'Last 90 days', '1w': 'Last 365 days' };
+            document.getElementById('chartViewRange').textContent = viewRanges[interval];
+            document.getElementById('chartSelectedInterval').textContent = INTERVAL_LABELS[interval];
+        }
+
+        function updateUI() {
+            renderHeaderWallet();
+            renderCryptoCards();
+            renderPredictionCards();
+            renderIntervalTimers();
+            renderActivePositions();
+            renderExchangePrices();
+            renderTechnicalIndicators();
+            renderExternalIndicators();
+            renderMasterSignal();
+            renderPredictionAccuracy();
+            renderHistory();
+            renderIntervalPerformance();
+            updateChart();
+            document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+        }
+
+        async function fetchAllData() {
+            await Promise.all([fetchCoinGeckoPrices(), fetchCryptoComparePrices(), fetchKrakenPrices(), fetchFearGreedIndex(), fetchNewsSentiment()]);
+        }
+
+        // Initialize
+        async function init() {
+            initChart();
+            setupIntervalButtons();
+            updateChartLabels();
+            
+            await fetchAllData();
+            await fetchHistoricalData(state.selectedCrypto);
+            
+            generateExternalIndicators();
+            calculateTechnicalIndicators(state.historicalData[state.selectedCrypto]);
+            calculateMasterSignal();
+            checkAndProcessIntervals();
+            updateUI();
+            
+            connectBinanceWebSocket();
+            
+            setInterval(() => { renderPredictionCards(); renderIntervalTimers(); renderActivePositions(); }, 1000);
+            setInterval(() => { checkAndProcessIntervals(); }, 1000);
+            setInterval(async () => { await fetchAllData(); calculateTechnicalIndicators(state.historicalData[state.selectedCrypto]); generateExternalIndicators(); calculateMasterSignal(); updateUI(); }, 5000);
+            
+            for (const crypto of CRYPTOS) { if (crypto !== state.selectedCrypto) fetchHistoricalData(crypto); }
+        }
+
+        init();
+    </script>
+</body>
+</html>
